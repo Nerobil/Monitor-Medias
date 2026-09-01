@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Universo de Activos — Monitor de Cruces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#121821; --surface-2:#1A2129; --border:#232C38;
+    --text:#EDF1F5; --text-2:#8B98A8; --text-3:#5C6773;
+    --gold:#E3A548; --up:#35D08C; --down:#F0555A;
+    --font-display:'Space Grotesk',system-ui,sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);padding-bottom:4rem;}
+  a{color:var(--gold); text-decoration:none;}
+  header{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-family:var(--font-display);font-size:20px;font-weight:600;margin:0;}
+  main{max-width:900px;margin:0 auto;padding:0 24px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;}
+  .panel h2{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0 0 14px;}
+  input,select{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:14px;width:100%;
+  }
+  input:focus,select:focus{outline:1px solid var(--gold);}
+  .fila{display:flex;gap:10px;margin-bottom:10px;}
+  .fila > *{flex:1;}
+  button{
+    background:var(--gold);color:#1A1305;border:none;padding:10px 16px;border-radius:8px;
+    font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;
+  }
+  button.secundario{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  button:hover{opacity:0.9;}
+  .resultados{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+  .resultado{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;
+  }
+  .resultado .info{display:flex;flex-direction:column;gap:2px;}
+  .resultado .tvsym{font-family:var(--font-mono);color:var(--gold);font-size:12px;}
+  .resultado .desc{color:var(--text-2);font-size:12px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);}
+  th{color:var(--text-3);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;}
+  td.mono{font-family:var(--font-mono);}
+  .estado-pill{font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:6px;}
+  .estado-Activo{background:rgba(53,208,140,0.15);color:var(--up);}
+  .estado-Inactivo{background:rgba(240,85,90,0.12);color:var(--down);}
+  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:10px;}
+  .msg.ok{background:rgba(53,208,140,0.1);color:var(--up);}
+  .msg.err{background:rgba(240,85,90,0.1);color:var(--down);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Universo de Activos</h1>
+  <a href="/">← Volver al panel</a>
+</header>
+<main>
+
+  <div class="panel">
+    <h2>1. Buscar en TradingView y autocompletar</h2>
+    <div class="fila">
+      <input id="buscarTexto" placeholder="Nombre o ticker, ej. Inditex, AAPL, BTCUSD..." />
+      <select id="buscarTipo" style="max-width:160px;">
+        <option value="">Todos los tipos</option>
+        <option value="stock">Acciones</option>
+        <option value="futures">Futuros</option>
+        <option value="forex">Divisas</option>
+        <option value="crypto">Cripto</option>
+        <option value="index">Índices</option>
+        <option value="cfd">CFD</option>
+      </select>
+      <button onclick="buscar()" style="flex:0 0 auto;">Buscar</button>
+    </div>
+    <div class="resultados" id="resultados"></div>
+  </div>
+
+  <div class="panel">
+    <h2>2. Datos del activo a dar de alta</h2>
+    <div class="fila">
+      <input id="fNombre" placeholder="Nombre" />
+      <input id="fTvSymbol" placeholder="Símbolo TradingView (ej. BME:ITX)" />
+    </div>
+    <div class="fila">
+      <input id="fCategoria" placeholder="Categoría" />
+      <input id="fMercado" placeholder="Mercado / Bolsa" />
+    </div>
+    <div class="fila">
+      <input id="fTicker" placeholder="Ticker (informativo)" />
+      <input id="fIsin" placeholder="ISIN (opcional)" />
+      <input id="fDivisa" placeholder="Divisa (ej. EUR)" />
+    </div>
+    <button onclick="crearActivo()">Dar de alta</button>
+    <div id="msgAlta"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Activos dados de alta</h2>
+    <table>
+      <thead><tr><th>Nombre</th><th>Mercado</th><th>Símbolo TV</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="tablaActivos"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+async function buscar(){
+  const q = document.getElementById('buscarTexto').value.trim();
+  const tipo = document.getElementById('buscarTipo').value;
+  if(!q) return;
+  const cont = document.getElementById('resultados');
+  cont.innerHTML = '<div style="color:var(--text-3);font-size:13px;">Buscando...</div>';
+  try{
+    const resp = await fetch(`/api/universo-buscar?q=${encodeURIComponent(q)}&tipo=${tipo}`);
+    const data = await resp.json();
+    if(!data.resultados.length){ cont.innerHTML = '<div style="color:var(--text-3);font-size:13px;">Sin resultados.</div>'; return; }
+    cont.innerHTML = data.resultados.map((r,i)=>`
+      <div class="resultado">
+        <div class="info">
+          <span>${r.nombre} <span class="tvsym">${r.tvSymbol}</span></span>
+          <span class="desc">${r.mercado} · ${r.categoria}</span>
+        </div>
+        <button class="secundario" onclick='rellenar(${JSON.stringify(r)})'>Usar</button>
+      </div>
+    `).join('');
+  }catch(err){
+    cont.innerHTML = `<div style="color:var(--down);font-size:13px;">Error: ${err.message}</div>`;
+  }
+}
+function rellenar(r){
+  document.getElementById('fNombre').value = r.nombre;
+  document.getElementById('fTvSymbol').value = r.tvSymbol;
+  document.getElementById('fCategoria').value = r.categoria;
+  document.getElementById('fMercado').value = r.mercado;
+  document.getElementById('fTicker').value = r.ticker;
+}
+async function crearActivo(){
+  const body = {
+    nombre: document.getElementById('fNombre').value.trim(),
+    tvSymbol: document.getElementById('fTvSymbol').value.trim(),
+    categoria: document.getElementById('fCategoria').value.trim(),
+    mercado: document.getElementById('fMercado').value.trim(),
+    ticker: document.getElementById('fTicker').value.trim(),
+    isin: document.getElementById('fIsin').value.trim(),
+    divisa: document.getElementById('fDivisa').value.trim(),
+    estado: 'Activo',
+  };
+  const msg = document.getElementById('msgAlta');
+  if(!body.nombre || !body.tvSymbol){
+    msg.innerHTML = '<div class="msg err">Nombre y Símbolo TradingView son obligatorios.</div>'; return;
+  }
+  try{
+    const resp = await fetch('/api/universo', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'Error desconocido');
+    msg.innerHTML = '<div class="msg ok">Activo dado de alta correctamente.</div>';
+    ['fNombre','fTvSymbol','fCategoria','fMercado','fTicker','fIsin','fDivisa'].forEach(id=>document.getElementById(id).value='');
+    cargarTabla();
+  }catch(err){
+    msg.innerHTML = `<div class="msg err">Error: ${err.message}</div>`;
+  }
+}
+async function cargarTabla(){
+  const tbody = document.getElementById('tablaActivos');
+  try{
+    const resp = await fetch('/api/universo');
+    const data = await resp.json();
+    tbody.innerHTML = data.activos.map(a=>`
+      <tr>
+        <td>${a.nombre}</td>
+        <td>${a.mercado||''}</td>
+        <td class="mono">${a.tv_symbol}</td>
+        <td><span class="estado-pill estado-${a.estado}">${a.estado}</span></td>
+        <td></td>
+      </tr>
+    `).join('');
+  }catch(err){
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
+  }
+}
+cargarTabla();
+</script>
+</body>
+</html>

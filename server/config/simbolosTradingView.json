@@ -1,0 +1,18 @@
+{
+  "_comentario": "Mapea el 'Nombre' de la hoja Monitorizacion/Universo_Activos al simbolo exacto que usa TradingView (formato BOLSA:TICKER). Verifica cada uno buscandolo en https://www.tradingview.com/symbols/ antes de usar en real - los prefijos de bolsa pueden variar (ej. FX vs OANDA, COMEX vs otro proveedor de futuros continuos).",
+  "Inditex": "BME:ITX",
+  "Iberdrola": "BME:IBE",
+  "Banco Santander": "BME:SAN",
+  "LVMH": "EURONEXT:MC",
+  "SAP": "XETR:SAP",
+  "Apple Inc.": "NASDAQ:AAPL",
+  "Microsoft Corp.": "NASDAQ:MSFT",
+  "Tesla Inc.": "NASDAQ:TSLA",
+  "Euro / Dolar": "FX:EURUSD",
+  "Libra / Dolar": "FX:GBPUSD",
+  "Bitcoin": "COINBASE:BTCUSD",
+  "Ethereum": "COINBASE:ETHUSD",
+  "SPDR S&P 500 ETF": "AMEX:SPY",
+  "Oro (Futuro)": "COMEX:GC1!",
+  "Plata (Futuro)": "COMEX:SI1!"
+}

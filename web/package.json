@@ -1,0 +1,9 @@
+{
+  "name": "monitor-cruces-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Panel web (Cloudflare Pages) del Monitor de Cruces. Las dependencias de aqui las usan las Functions en /functions.",
+  "dependencies": {
+    "@libsql/client": "^0.14.0"
+  }
+}

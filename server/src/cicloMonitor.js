@@ -201,7 +201,14 @@ async function ejecutarCiclo() {
 }
 
 async function main() {
-  const intervaloMin = Number(process.env.INTERVALO_MINUTOS || 0);
+  // En CI (GitHub Actions, o cualquier runner que exporte CI=true) SIEMPRE se
+  // ejecuta un unico ciclo y se sale, sin importar INTERVALO_MINUTOS: es el
+  // cron del workflow quien decide la periodicidad. Esto evita que un .env
+  // de pruebas (con INTERVALO_MINUTOS=15) deje el job en bucle hasta que lo
+  // cancele el timeout del workflow.
+  const enCI = process.env.GITHUB_ACTIONS === 'true' || process.env.CI === 'true';
+  const intervaloMin = enCI ? 0 : Number(process.env.INTERVALO_MINUTOS || 0);
+
   if (!intervaloMin) {
     await ejecutarCiclo();
     return;
@@ -214,17 +221,11 @@ async function main() {
       await ejecutarCiclo();
     } catch (err) {
       log(`ERROR en el ciclo: ${err.message}`);
+      console.error(err);
     }
     // eslint-disable-next-line no-await-in-loop
     await esperar(intervaloMin * 60 * 1000);
   }
-}
-
-if (require.main === module) {
-  main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
 }
 
 module.exports = { ejecutarCiclo };

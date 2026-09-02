@@ -1,0 +1,44 @@
+name: Ciclo de vigilancia - Monitor de Cruces
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña "Actions" de GitHub
+
+jobs:
+  ejecutar-ciclo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar un ciclo de vigilancia
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          CANAL_TELEGRAM: ${{ vars.CANAL_TELEGRAM || 'true' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CANAL_EMAIL: ${{ vars.CANAL_EMAIL || 'false' }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_SECURE: ${{ secrets.EMAIL_SECURE }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TV_SESSION: ${{ secrets.TV_SESSION }}
+          TV_SIGNATURE: ${{ secrets.TV_SIGNATURE }}
+        run: npm run ciclo

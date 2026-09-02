@@ -25,7 +25,17 @@ const db = crearClienteDb();
  */
 async function aplicarEsquema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-  await db.executeMultiple(sql);
+  const sentencias = sql
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const sentencia of sentencias) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await db.execute(sentencia);
+    } catch (err) {
+      throw new Error(`Fallo aplicando el esquema en:\n${sentencia}\n\nError original: ${err.message}`);
+    }
+  }
 }
-
 module.exports = { db, aplicarEsquema };

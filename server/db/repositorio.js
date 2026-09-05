@@ -185,6 +185,7 @@ async function obtenerPanelActivo() {
 async function iniciarLogCiclo() {
   const rs = await db.execute({
     sql: "INSERT INTO log_ciclos (inicio) VALUES (datetime('now'))",
+    args: [],
   });
   return Number(rs.lastInsertRowid);
 }

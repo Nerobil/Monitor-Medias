@@ -154,33 +154,52 @@ async function ejecutarCiclo() {
 
   log(`Activos a vigilar: ${activos.length}. Reglas de cruce dadas de alta: ${reglas.length}.`);
 
-  const client = crearCliente();
   const alertasNuevasTotal = [];
   const errores = [];
 
-  for (const activo of activos) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const { alertasNuevas, snapshot } = await procesarActivo({
-        client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta,
-      });
-      alertasNuevasTotal.push(...alertasNuevas);
+  if (activos.length > 0) {
+    const client = crearCliente();
 
-      // eslint-disable-next-line no-await-in-loop
-      const activasPrevias = await repo.listarAlertasActivasDeActivo(activo.id);
-      if (alertasNuevas.length > 0 || activasPrevias.length > 0) {
+    for (const activo of activos) {
+      try {
         // eslint-disable-next-line no-await-in-loop
-        await repo.guardarSnapshot(activo.id, snapshot);
-      }
-    } catch (err) {
-      errores.push({ activo: activo.nombre, error: err.message });
-      log(`ERROR con ${activo.nombre}: ${err.message}`);
-    }
-    // eslint-disable-next-line no-await-in-loop
-    await esperar(PAUSA_ENTRE_ACTIVOS_MS);
-  }
+        const { alertasNuevas, snapshot } = await procesarActivo({
+          client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta,
+        });
+        alertasNuevasTotal.push(...alertasNuevas);
 
-  client.end();
+        // eslint-disable-next-line no-await-in-loop
+        const activasPrevias = await repo.listarAlertasActivasDeActivo(activo.id);
+        if (alertasNuevas.length > 0 || activasPrevias.length > 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await repo.guardarSnapshot(activo.id, snapshot);
+        }
+      } catch (err) {
+        errores.push({ activo: activo.nombre, error: err.message });
+        log(`ERROR con ${activo.nombre}: ${err.message}`);
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await esperar(PAUSA_ENTRE_ACTIVOS_MS);
+    }
+
+    // client.end() de la libreria de TradingView tiene un fallo conocido: si el
+    // WebSocket todavia esta conectando (readyState 0) cuando se llama, nunca
+    // cierra el socket porque comprueba "if (readyState)" en vez de comparar el
+    // estado exacto - y 0 es "falso" en JS. Con muchos activos esto no se nota
+    // (el socket ya lleva rato abierto), pero con pocos o ninguno el ciclo
+    // termina tan rapido que puede pillar el WebSocket aun conectando, dejando
+    // el proceso colgado para siempre. Lo evitamos esperando a que salga de
+    // CONNECTING antes de pedirle que cierre, con un margen de seguridad.
+    for (let i = 0; i < 50 && !client.isOpen; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await esperar(100);
+    }
+    try {
+      await client.end();
+    } catch (err) {
+      log(`Aviso: no se pudo cerrar limpiamente la conexion a TradingView (${err.message}).`);
+    }
+  }
 
   const archivadas = await repo.archivarAlertasVencidas(HORAS_VENTANA_ACTIVA);
   if (archivadas) log(`Alertas pasadas a historico por antiguedad (>${HORAS_VENTANA_ACTIVA}h): ${archivadas}.`);
@@ -211,7 +230,13 @@ async function main() {
 
   if (!intervaloMin) {
     await ejecutarCiclo();
-    return;
+    // Salida explicita: nunca confiamos en que el bucle de eventos se vacie
+    // solo. Cualquier libreria (TradingView, el cliente HTTP de Turso...)
+    // puede dejar una conexion abierta de fondo sin que sea un error nuestro;
+    // en un script de "ejecutar una vez y salir" como este, forzar la salida
+    // aqui es la forma correcta y estandar de garantizar que el proceso
+    // termina, en vez de esperar (y a veces colgarse para siempre).
+    process.exit(0);
   }
   log(`Modo continuo: se ejecutara cada ${intervaloMin} minutos.`);
   // eslint-disable-next-line no-constant-condition

@@ -22,6 +22,11 @@ const db = crearClienteDb();
 /**
  * Aplica el esquema (CREATE TABLE IF NOT EXISTS...). Seguro de llamar en cada
  * arranque: no borra datos existentes.
+ *
+ * Se ejecuta sentencia por sentencia con `db.execute()` en vez de
+ * `db.executeMultiple()`: es el metodo que Turso documenta y prueba para su
+ * transporte remoto (HTTP); `executeMultiple` esta pensado sobre todo para
+ * SQLite local/embebido y puede comportarse de forma distinta en remoto.
  */
 async function aplicarEsquema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
@@ -38,4 +43,5 @@ async function aplicarEsquema() {
     }
   }
 }
+
 module.exports = { db, aplicarEsquema };

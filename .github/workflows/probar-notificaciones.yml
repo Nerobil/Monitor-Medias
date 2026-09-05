@@ -1,16 +1,12 @@
-name: Ciclo de vigilancia - Monitor de Cruces
+name: Probar notificaciones - Monitor de Cruces
 
 on:
-  schedule:
-    # Cada 15 minutos. Ajusta si cambias INTERVALO_MINUTOS conceptualmente
-    # (aqui no aplica ese valor: quien manda es este cron, no el bucle interno).
-    - cron: '*/15 * * * *'
-  workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña "Actions" de GitHub
+  workflow_dispatch: {} # boton "Run workflow" en la pestaña Actions
 
 jobs:
-  ejecutar-ciclo:
+  probar:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 3
     defaults:
       run:
         working-directory: server
@@ -26,10 +22,8 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Ejecutar un ciclo de vigilancia
+      - name: Enviar aviso de prueba
         env:
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           CANAL_TELEGRAM: ${{ vars.CANAL_TELEGRAM }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -41,9 +35,4 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          TV_SESSION: ${{ secrets.TV_SESSION }}
-          TV_SIGNATURE: ${{ secrets.TV_SIGNATURE }}
-          # INTERVALO_MINUTOS se deja vacio a proposito: en GitHub Actions el
-          # ciclo debe ejecutarse UNA vez y salir; es el cron de arriba quien
-          # decide la periodicidad.
-        run: npm run ciclo
+        run: npm run probar-notificaciones

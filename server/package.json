@@ -5,6 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "migrar-desde-excel": "node scripts/migrarDesdeExcel.js",
+    "probar-notificaciones": "node scripts/probarNotificaciones.js",
     "ciclo": "node src/cicloMonitor.js",
     "start": "node src/server.js"
   },

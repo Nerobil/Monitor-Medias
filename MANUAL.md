@@ -51,8 +51,11 @@ start*, ideal para abrir el panel desde el móvil al instante.
    ejecuta:
    ```
    npm install
-   cp .env.example .env
    ```
+   Ahora crea el fichero `.env`:
+   - **Windows (cmd):** `copy .env.example .env`
+   - **Windows (PowerShell) / Mac / Linux:** `cp .env.example .env`
+
    Sin tocar nada más en `.env`, esto usará una base de datos local de prueba
    (un fichero en `server/data/monitor.db`), sin necesidad de Turso todavía.
 5. Importa tus datos actuales del Excel:
@@ -80,14 +83,32 @@ solo queda "mudarla" a la nube.
 
 ## 3. Sube el proyecto a GitHub
 
-1. Crea un repositorio nuevo en GitHub (puede ser **privado**).
-2. Sube el contenido del `.zip` a ese repositorio (arrastrando los ficheros
-   desde la web de GitHub es suficiente si no usas Git por línea de comandos;
-   si lo usas: `git init`, `git add .`, `git commit -m "inicial"`,
-   `git remote add origin <url>`, `git push -u origin main`).
+**Recomendado: usa GitHub Desktop** (desktop.github.com), no arrastres carpetas
+por la web. La razón: el navegador (y la propia web de subida de GitHub)
+**omite en silencio cualquier carpeta cuyo nombre empiece por un punto**, como
+`.github` — que es justo la carpeta que hace funcionar el motor de vigilancia
+automático — y también `.gitignore`. No avisa de que se ha saltado nada.
+
+1. Instala GitHub Desktop y crea un repositorio nuevo desde ahí (**File → New
+   repository**, o crea uno vacío en la web de GitHub y luego **File → Clone
+   repository** en la app).
+2. Copia **todo** el contenido descomprimido del `.zip` dentro de la carpeta
+   que gestiona GitHub Desktop en tu PC (sustituyendo lo que hubiera, sin
+   tocar la carpeta invisible `.git`).
+3. En GitHub Desktop, pestaña **Changes**, escribe un mensaje de commit (ej.
+   "Version inicial"), pulsa **Commit to main** y luego **Push origin**.
+4. Comprueba en la web de tu repositorio que la carpeta `.github` aparece
+   junto a `server` y `web` — si no aparece, no se subió bien y el motor de
+   vigilancia (paso 5) no funcionará.
+
+Si prefieres la línea de comandos: `git init`, `git add .`,
+`git commit -m "inicial"`, `git remote add origin <url>`,
+`git push -u origin main` — Git por comandos sí sube las carpetas con punto
+correctamente, al igual que GitHub Desktop.
 
 **Importante:** el `.gitignore` incluido ya excluye tu `.env` y la base de
-datos local, así que no subirás datos sensibles por accidente.
+datos local, así que no subirás datos sensibles por accidente — pero solo si
+ese fichero llegó realmente a GitHub (comprueba el paso 4 de arriba).
 
 ---
 
@@ -127,13 +148,40 @@ datos local, así que no subirás datos sensibles por accidente.
 4. Para probarlo ya, sin esperar: pestaña **Actions** → "Ciclo de vigilancia -
    Monitor de Cruces" → botón **Run workflow**.
 5. Antes de tener datos reales en Turso, necesitas migrar tu Excel una vez
-   **contra Turso** (no contra tu base local). Desde tu ordenador:
-   ```
-   cd server
-   TURSO_DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." npm run migrar-desde-excel -- ../Monitor_Cruces_Medias_Moviles.xlsx
-   ```
-   (En Windows con PowerShell, usa `$env:TURSO_DATABASE_URL="..."` en líneas
-   separadas antes del comando, en vez de anteponerlo en la misma línea.)
+   **contra Turso** (no contra tu base local). La forma segura y que funciona
+   igual en cmd, PowerShell, Mac o Linux es escribir las credenciales en el
+   fichero `.env` en vez de pasarlas en la línea de comandos:
+
+   1. Abre `server\.env` con el Bloc de notas (el mismo que creaste en el
+      paso 2; si no existe, cópialo primero de `.env.example`).
+   2. Rellena estas dos líneas con los datos reales de Turso (sin comillas):
+      ```
+      TURSO_DATABASE_URL=libsql://tu-base-datos.turso.io
+      TURSO_AUTH_TOKEN=el_token_largo_que_te_dio_turso
+      ```
+   3. Guarda el fichero.
+   4. En la terminal, dentro de la carpeta `server`, ejecuta simplemente:
+      ```
+      npm run migrar-desde-excel -- ../Monitor_Cruces_Medias_Moviles.xlsx
+      ```
+      Sin anteponer nada delante — al leer `.env`, el programa ya sabe
+      conectarse a Turso. Esto funciona igual en `cmd` que en PowerShell.
+
+   > **Por qué falló antes:** `VARIABLE=valor comando` (todo en una línea) es
+   > sintaxis de Linux/Mac. Ni `cmd` ni PowerShell la entienden — cada uno
+   > intenta ejecutar `TURSO_DATABASE_URL="..."` como si fuera el nombre de un
+   > programa, de ahí el error de "no se reconoce como comando". Poniendo los
+   > valores en `.env` te evitas ese problema por completo, y de paso no dejas
+   > el token pegado en el historial de la terminal.
+   >
+   > Si aun así prefieres pasarlo por línea de comandos sin tocar `.env`:
+   > - **cmd:** `set TURSO_DATABASE_URL=libsql://...` y `set TURSO_AUTH_TOKEN=...`
+   >   (cada uno en su propia línea, sin comillas), y luego en esa misma
+   >   ventana `npm run migrar-desde-excel -- ../Monitor_Cruces_Medias_Moviles.xlsx`.
+   > - **PowerShell:** `$env:TURSO_DATABASE_URL="libsql://..."` y
+   >   `$env:TURSO_AUTH_TOKEN="..."` (cada uno en su propia línea), y luego el
+   >   mismo comando `npm run migrar-desde-excel -- ...`.
+   >   Estas variables solo duran mientras esa ventana de terminal está abierta.
 
 **Nota sobre el cron:** GitHub pausa automáticamente los workflows programados
 si el repositorio lleva 60 días sin actividad alguna. Si eso pasa, basta con

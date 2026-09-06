@@ -170,13 +170,22 @@ async function obtenerPanelActivo() {
     LEFT JOIN snapshot_activo s ON s.activo_id = u.id
     ORDER BY s.actualizado_en DESC
   `);
+  // Una sola consulta para todas las alertas activas, en vez de una por
+  // activo: evita N+1 consultas contra Turso (mas lento y, en el caso de
+  // las Functions de Cloudflare, supera el limite de peticiones salientes).
+  const todasAlertas = await db.execute("SELECT * FROM alertas WHERE estado = 'activa' ORDER BY detectada_en DESC");
+  const alertasPorActivo = new Map();
+  todasAlertas.rows.forEach((alerta) => {
+    if (!alertasPorActivo.has(alerta.activo_id)) alertasPorActivo.set(alerta.activo_id, []);
+    alertasPorActivo.get(alerta.activo_id).push(alerta);
+  });
+
   const activos = rs.rows;
-  for (const act of activos) {
-    // eslint-disable-next-line no-await-in-loop
-    act.alertas = await listarAlertasActivasDeActivo(act.id);
+  activos.forEach((act) => {
+    act.alertas = alertasPorActivo.get(act.id) || [];
     act.tendencias = JSON.parse(act.tendencias_json || '{}');
     act.distanciaMedias = JSON.parse(act.distancia_medias_json || '[]');
-  }
+  });
   return activos;
 }
 

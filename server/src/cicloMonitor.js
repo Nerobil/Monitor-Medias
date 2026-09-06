@@ -33,7 +33,7 @@ function esperar(ms) {
  * las alertas nuevas detectadas (si las hay).
  */
 async function procesarActivo({
-  client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta,
+  client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta, reglasInvalidasAvisadas,
 }) {
   const velasDiarias = await obtenerVelas(client, activo.tv_symbol, '1D', 1300);
   const cierresDiarios = velasDiarias.map((v) => v.close);
@@ -69,55 +69,69 @@ async function procesarActivo({
     if (!tfConVigilancia.has(String(regla.timeframe))) continue;
     const velas = velasPorTF[regla.timeframe];
     if (!velas || velas.length < 5) continue;
-    const cierres = velas.map((v) => v.close);
 
-    const rapida = parseEtiquetaMedia(regla.media_rapida);
-    const lenta = parseEtiquetaMedia(regla.media_lenta);
-    const serieRapida = calcularMedia(cierres, rapida.tipo, rapida.periodo);
-    const serieLenta = calcularMedia(cierres, lenta.tipo, lenta.periodo);
-    const i = cierres.length - 1;
+    // Una regla mal formada (por ejemplo, con "Vela" en vez de una media
+    // real - dato corrupto, no un cruce Vela/Media soportado) NUNCA debe
+    // impedir evaluar el resto de reglas de este activo, ni las de los demas
+    // activos. Se avisa una sola vez por regla en todo el ciclo, no una vez
+    // por cada activo, para no inundar el log.
+    try {
+      const cierres = velas.map((v) => v.close);
 
-    const direccion = detectarCruce(serieRapida[i], serieRapida[i - 1], serieLenta[i], serieLenta[i - 1]);
+      const rapida = parseEtiquetaMedia(regla.media_rapida);
+      const lenta = parseEtiquetaMedia(regla.media_lenta);
+      const serieRapida = calcularMedia(cierres, rapida.tipo, rapida.periodo);
+      const serieLenta = calcularMedia(cierres, lenta.tipo, lenta.periodo);
+      const i = cierres.length - 1;
 
-    const tfEtq = etiquetaTimeframe(regla.timeframe);
-    if (serieRapida[i] !== null) {
-      distanciaMedias.push({ etiqueta: `${regla.media_rapida} (${tfEtq})`, pct: pctDistancia(precioActual, serieRapida[i]) });
-    }
-    if (serieLenta[i] !== null) {
-      distanciaMedias.push({ etiqueta: `${regla.media_lenta} (${tfEtq})`, pct: pctDistancia(precioActual, serieLenta[i]) });
-    }
+      const direccion = detectarCruce(serieRapida[i], serieRapida[i - 1], serieLenta[i], serieLenta[i - 1]);
 
-    if (direccion) {
-      const id = construirId(activo.nombre, regla.timeframe, regla.media_rapida, regla.media_lenta, velas[i].time);
-      // eslint-disable-next-line no-await-in-loop
-      const yaExiste = await repo.existeAlerta(id);
-      if (!yaExiste) {
-        const mensaje = construirMensaje({
-          direccion,
-          mediaRapida: regla.media_rapida,
-          mediaLenta: regla.media_lenta,
-          timeframe: regla.timeframe,
-          nombreActivo: activo.nombre,
-          mercado: activo.mercado,
-          nivel: regla.nivel,
-          precio: precioActual,
-        });
-        const alerta = {
-          id,
-          activoId: activo.id,
-          nombreActivo: activo.nombre,
-          mercado: activo.mercado,
-          timeframe: regla.timeframe,
-          mediaRapida: regla.media_rapida,
-          mediaLenta: regla.media_lenta,
-          direccion,
-          nivel: regla.nivel,
-          mensaje,
-          precioEnCruce: precioActual,
-        };
+      const tfEtq = etiquetaTimeframe(regla.timeframe);
+      if (serieRapida[i] !== null) {
+        distanciaMedias.push({ etiqueta: `${regla.media_rapida} (${tfEtq})`, pct: pctDistancia(precioActual, serieRapida[i]) });
+      }
+      if (serieLenta[i] !== null) {
+        distanciaMedias.push({ etiqueta: `${regla.media_lenta} (${tfEtq})`, pct: pctDistancia(precioActual, serieLenta[i]) });
+      }
+
+      if (direccion) {
+        const id = construirId(activo.nombre, regla.timeframe, regla.media_rapida, regla.media_lenta, velas[i].time);
         // eslint-disable-next-line no-await-in-loop
-        await repo.insertarAlerta(alerta);
-        alertasNuevas.push(alerta);
+        const yaExiste = await repo.existeAlerta(id);
+        if (!yaExiste) {
+          const mensaje = construirMensaje({
+            direccion,
+            mediaRapida: regla.media_rapida,
+            mediaLenta: regla.media_lenta,
+            timeframe: regla.timeframe,
+            nombreActivo: activo.nombre,
+            mercado: activo.mercado,
+            nivel: regla.nivel,
+            precio: precioActual,
+          });
+          const alerta = {
+            id,
+            activoId: activo.id,
+            nombreActivo: activo.nombre,
+            mercado: activo.mercado,
+            timeframe: regla.timeframe,
+            mediaRapida: regla.media_rapida,
+            mediaLenta: regla.media_lenta,
+            direccion,
+            nivel: regla.nivel,
+            mensaje,
+            precioEnCruce: precioActual,
+          };
+          // eslint-disable-next-line no-await-in-loop
+          await repo.insertarAlerta(alerta);
+          alertasNuevas.push(alerta);
+        }
+      }
+    } catch (errRegla) {
+      const claveRegla = `${regla.media_rapida}|${regla.media_lenta}|${regla.timeframe}`;
+      if (!reglasInvalidasAvisadas.has(claveRegla)) {
+        reglasInvalidasAvisadas.add(claveRegla);
+        log(`AVISO: la regla "${regla.media_rapida}" / "${regla.media_lenta}" (${regla.timeframe}) es invalida y se ignora en todo el ciclo: ${errRegla.message}`);
       }
     }
   }
@@ -154,33 +168,53 @@ async function ejecutarCiclo() {
 
   log(`Activos a vigilar: ${activos.length}. Reglas de cruce dadas de alta: ${reglas.length}.`);
 
-  const client = crearCliente();
   const alertasNuevasTotal = [];
+  const reglasInvalidasAvisadas = new Set();
   const errores = [];
 
-  for (const activo of activos) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const { alertasNuevas, snapshot } = await procesarActivo({
-        client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta,
-      });
-      alertasNuevasTotal.push(...alertasNuevas);
+  if (activos.length > 0) {
+    const client = crearCliente();
 
-      // eslint-disable-next-line no-await-in-loop
-      const activasPrevias = await repo.listarAlertasActivasDeActivo(activo.id);
-      if (alertasNuevas.length > 0 || activasPrevias.length > 0) {
+    for (const activo of activos) {
+      try {
         // eslint-disable-next-line no-await-in-loop
-        await repo.guardarSnapshot(activo.id, snapshot);
-      }
-    } catch (err) {
-      errores.push({ activo: activo.nombre, error: err.message });
-      log(`ERROR con ${activo.nombre}: ${err.message}`);
-    }
-    // eslint-disable-next-line no-await-in-loop
-    await esperar(PAUSA_ENTRE_ACTIVOS_MS);
-  }
+        const { alertasNuevas, snapshot } = await procesarActivo({
+          client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta, reglasInvalidasAvisadas,
+        });
+        alertasNuevasTotal.push(...alertasNuevas);
 
-  client.end();
+        // eslint-disable-next-line no-await-in-loop
+        const activasPrevias = await repo.listarAlertasActivasDeActivo(activo.id);
+        if (alertasNuevas.length > 0 || activasPrevias.length > 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await repo.guardarSnapshot(activo.id, snapshot);
+        }
+      } catch (err) {
+        errores.push({ activo: activo.nombre, error: err.message });
+        log(`ERROR con ${activo.nombre}: ${err.message}`);
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await esperar(PAUSA_ENTRE_ACTIVOS_MS);
+    }
+
+    // client.end() de la libreria de TradingView tiene un fallo conocido: si el
+    // WebSocket todavia esta conectando (readyState 0) cuando se llama, nunca
+    // cierra el socket porque comprueba "if (readyState)" en vez de comparar el
+    // estado exacto - y 0 es "falso" en JS. Con muchos activos esto no se nota
+    // (el socket ya lleva rato abierto), pero con pocos o ninguno el ciclo
+    // termina tan rapido que puede pillar el WebSocket aun conectando, dejando
+    // el proceso colgado para siempre. Lo evitamos esperando a que salga de
+    // CONNECTING antes de pedirle que cierre, con un margen de seguridad.
+    for (let i = 0; i < 50 && !client.isOpen; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await esperar(100);
+    }
+    try {
+      await client.end();
+    } catch (err) {
+      log(`Aviso: no se pudo cerrar limpiamente la conexion a TradingView (${err.message}).`);
+    }
+  }
 
   const archivadas = await repo.archivarAlertasVencidas(HORAS_VENTANA_ACTIVA);
   if (archivadas) log(`Alertas pasadas a historico por antiguedad (>${HORAS_VENTANA_ACTIVA}h): ${archivadas}.`);
@@ -211,7 +245,13 @@ async function main() {
 
   if (!intervaloMin) {
     await ejecutarCiclo();
-    return;
+    // Salida explicita: nunca confiamos en que el bucle de eventos se vacie
+    // solo. Cualquier libreria (TradingView, el cliente HTTP de Turso...)
+    // puede dejar una conexion abierta de fondo sin que sea un error nuestro;
+    // en un script de "ejecutar una vez y salir" como este, forzar la salida
+    // aqui es la forma correcta y estandar de garantizar que el proceso
+    // termina, en vez de esperar (y a veces colgarse para siempre).
+    process.exit(0);
   }
   log(`Modo continuo: se ejecutara cada ${intervaloMin} minutos.`);
   // eslint-disable-next-line no-constant-condition

@@ -10,7 +10,7 @@ on:
 jobs:
   ejecutar-ciclo:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: server

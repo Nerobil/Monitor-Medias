@@ -8,6 +8,7 @@
  */
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const ExcelJS = require('exceljs');
 const { aplicarEsquema } = require('../db/cliente');
 const repo = require('../db/repositorio');
@@ -26,40 +27,82 @@ const TF_EXCEL_A_CODIGO = {
   '15 min': '15', '30 min': '30', '1 hora': '60', '4 horas': '240', Diario: '1D',
 };
 
+/**
+ * Intenta resolver el simbolo de TradingView a partir de lo que ya haya en la
+ * columna "Ticker" del Excel, en este orden:
+ *
+ *  1. Ya viene en formato TradingView (BOLSA:TICKER) -> se usa tal cual.
+ *  2. Termina en ".MC" (Bolsa de Madrid, notacion tipo Yahoo Finance) -> BME:TICKER
+ *  3. Categoria = "Forex" Y es un par de 6 letras (EURUSD, GBPUSD...) -> FX:TICKER
+ *  4. No se puede resolver con seguridad -> null (se completara a mano luego
+ *     desde el panel web, con el buscador de TradingView).
+ *
+ * El patron de Forex exige ademas que la categoria del Excel sea "Forex":
+ * varias criptomonedas (BTCUSD, ETHUSD...) tambien tienen 6 letras sin
+ * separador y se confundirian con un par de divisas si solo mirasemos la
+ * forma del texto. Deliberadamente tampoco se intenta adivinar acciones
+ * sueltas ni criptomonedas: ahi un fallo de bolsa o de exchange podria acabar
+ * vigilando el activo equivocado, y no vale la pena el riesgo para un ahorro
+ * de un clic.
+ */
+function resolverSimboloPorPatron(ticker, categoria) {
+  if (!ticker) return null;
+  const t = String(ticker).trim().toUpperCase();
+
+  if (/^[A-Z0-9_.]+:[A-Z0-9._!]+$/.test(t)) return t; // ya es BOLSA:TICKER
+
+  const madrid = /^([A-Z0-9]+)\.MC$/.exec(t);
+  if (madrid) return `BME:${madrid[1]}`;
+
+  const esForex = String(categoria || '').trim().toLowerCase() === 'forex';
+  if (esForex && /^[A-Z]{6}$/.test(t)) return `FX:${t}`;
+
+  return null;
+}
+
 async function migrarUniversoYSimbolos(wb) {
-  const simbolos = require(RUTA_SIMBOLOS);
+  const simbolosLegacy = require(RUTA_SIMBOLOS);
   const ws = wb.getWorksheet('Universo_Activos');
   let fila = 3; // fila 1 = nota, fila 2 = cabecera
   let creados = 0;
   let omitidos = 0;
+  const omitidosNombres = [];
   while (true) {
     const nombre = valorPlano(ws.getCell(fila, 3).value);
     if (!nombre) break;
     const estado = valorPlano(ws.getCell(fila, 8).value);
-    const tvSymbol = simbolos[nombre];
+    const categoria = valorPlano(ws.getCell(fila, 1).value);
+    const tickerExcel = valorPlano(ws.getCell(fila, 4).value);
+    const tvSymbol = resolverSimboloPorPatron(tickerExcel, categoria) || simbolosLegacy[nombre];
     if (estado === 'Activo' && tvSymbol) {
       // eslint-disable-next-line no-await-in-loop
       await repo.crearActivo({
         categoria: valorPlano(ws.getCell(fila, 1).value),
         mercado: valorPlano(ws.getCell(fila, 2).value),
         nombre,
-        ticker: valorPlano(ws.getCell(fila, 4).value),
+        ticker: tickerExcel,
         isin: valorPlano(ws.getCell(fila, 5).value),
         divisa: valorPlano(ws.getCell(fila, 6).value),
         tvSymbol,
         estado: 'Activo',
-      }).catch((err) => {
+      }).then(() => { creados += 1; }).catch((err) => {
         if (!/UNIQUE/.test(err.message)) throw err;
         omitidos += 1;
+        omitidosNombres.push(`${nombre} (duplicado de simbolo ${tvSymbol})`);
       });
-      creados += 1;
     } else if (estado === 'Activo' && !tvSymbol) {
-      console.log(`  (omitido, sin simbolo TradingView mapeado): ${nombre}`);
       omitidos += 1;
+      omitidosNombres.push(nombre);
     }
     fila += 1;
   }
   console.log(`Universo_Activos: ${creados} activos migrados, ${omitidos} omitidos.`);
+  if (omitidosNombres.length) {
+    const rutaOmitidos = path.join(__dirname, '..', '..', 'activos-pendientes-de-anadir.txt');
+    fs.writeFileSync(rutaOmitidos, omitidosNombres.join('\n'), 'utf8');
+    console.log(`Lista de los ${omitidosNombres.length} omitidos guardada en: ${rutaOmitidos}`);
+    console.log('Anadelos despues desde el panel web (universo.html), con el buscador de TradingView.');
+  }
 }
 
 async function main() {
@@ -108,13 +151,16 @@ async function main() {
   let fila = 3;
   let reglasCreadas = 0;
   let reglasIgnoradasVela = 0;
-  while (fila <= 60) {
+  let filasVaciasSeguidas = 0;
+  while (filasVaciasSeguidas < 20) { // se para tras 20 filas vacias seguidas, sin limite fijo de filas
     const nivel = valorPlano(wsNiv.getCell(fila, 1).value);
     const elem1 = valorPlano(wsNiv.getCell(fila, 3).value);
     const elem2 = valorPlano(wsNiv.getCell(fila, 5).value);
     const tfExcel = valorPlano(wsNiv.getCell(fila, 6).value);
     if (nivel !== null && nivel !== undefined && elem1 && elem2 && tfExcel) {
-      if (String(elem1).trim().toLowerCase() === 'vela') {
+      filasVaciasSeguidas = 0;
+      const esVela = [elem1, elem2].some((e) => String(e).trim().toLowerCase() === 'vela');
+      if (esVela) {
         reglasIgnoradasVela += 1;
       } else {
         const tfCodigo = TF_EXCEL_A_CODIGO[tfExcel] || tfExcel;
@@ -127,6 +173,8 @@ async function main() {
         });
         reglasCreadas += 1;
       }
+    } else {
+      filasVaciasSeguidas += 1;
     }
     fila += 1;
   }

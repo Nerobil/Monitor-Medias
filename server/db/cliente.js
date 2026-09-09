@@ -42,6 +42,28 @@ async function aplicarEsquema() {
       throw new Error(`Fallo aplicando el esquema en:\n${sentencia}\n\nError original: ${err.message}`);
     }
   }
+  await aplicarMigracionesColumnas();
+}
+
+/**
+ * "CREATE TABLE IF NOT EXISTS" no anade columnas nuevas a una tabla que ya
+ * existia de antes con menos columnas (tu base de datos de Turso ya tenia la
+ * tabla "alertas" sin "tv_symbol" antes de anadir esta funcionalidad). Se
+ * anade aqui de forma segura: si la columna ya existe (instalacion nueva,
+ * donde el CREATE TABLE de arriba ya la trae), se ignora el error.
+ */
+async function aplicarMigracionesColumnas() {
+  const migraciones = [
+    'ALTER TABLE alertas ADD COLUMN tv_symbol TEXT',
+  ];
+  for (const migracion of migraciones) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await db.execute(migracion);
+    } catch (err) {
+      if (!/duplicate column name/i.test(err.message)) throw err;
+    }
+  }
 }
 
 module.exports = { db, aplicarEsquema };

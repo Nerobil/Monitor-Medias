@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS alertas (
   id TEXT PRIMARY KEY,           -- Activo|TF-MA1MA2|AAAAMMDDhhmm (anti-duplicados)
   activo_id INTEGER NOT NULL REFERENCES universo_activos(id),
   nombre_activo TEXT NOT NULL,
+  tv_symbol TEXT,                -- simbolo TradingView, para mostrarlo junto al nombre
   mercado TEXT,
   timeframe TEXT NOT NULL,
   media_rapida TEXT NOT NULL,

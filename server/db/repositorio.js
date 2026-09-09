@@ -90,10 +90,10 @@ async function existeAlerta(id) {
 async function insertarAlerta(a) {
   await db.execute({
     sql: `INSERT INTO alertas
-      (id, activo_id, nombre_activo, mercado, timeframe, media_rapida, media_lenta, direccion, nivel, mensaje, precio_en_cruce, detectada_en, estado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'activa')`,
+      (id, activo_id, nombre_activo, tv_symbol, mercado, timeframe, media_rapida, media_lenta, direccion, nivel, mensaje, precio_en_cruce, detectada_en, estado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 'activa')`,
     args: [
-      a.id, a.activoId, a.nombreActivo, a.mercado, a.timeframe, a.mediaRapida,
+      a.id, a.activoId, a.nombreActivo, a.tvSymbol, a.mercado, a.timeframe, a.mediaRapida,
       a.mediaLenta, a.direccion, a.nivel, a.mensaje, a.precioEnCruce,
     ],
   });
@@ -133,9 +133,16 @@ async function listarHistorico({ limite = 200, offset = 0 } = {}) {
   return rs.rows;
 }
 
+/** Borra una alerta de forma manual y definitiva, independiente del archivado automatico por antiguedad (36h). */
+async function eliminarAlerta(id) {
+  const rs = await db.execute({ sql: 'DELETE FROM alertas WHERE id = ?', args: [id] });
+  return rs.rowsAffected > 0;
+}
+
 // ---------- Snapshot (datos mostrados en el panel) ----------
 
 async function guardarSnapshot(activoId, datos) {
+  const v = (x) => (x === undefined ? null : x);
   await db.execute({
     sql: `INSERT INTO snapshot_activo
       (activo_id, precio_actual, var_dia, var_5d, var_1m, var_3m, var_ytd, var_1a, var_5a, rsi, tendencias_json, distancia_medias_json, actualizado_en)
@@ -147,8 +154,8 @@ async function guardarSnapshot(activoId, datos) {
         tendencias_json = excluded.tendencias_json, distancia_medias_json = excluded.distancia_medias_json,
         actualizado_en = datetime('now')`,
     args: [
-      activoId, datos.precioActual, datos.varDia, datos.var5d, datos.var1m, datos.var3m,
-      datos.varYtd, datos.var1a, datos.var5a, datos.rsi,
+      activoId, v(datos.precioActual), v(datos.varDia), v(datos.var5d), v(datos.var1m), v(datos.var3m),
+      v(datos.varYtd), v(datos.var1a), v(datos.var5a), v(datos.rsi),
       JSON.stringify(datos.tendencias || {}), JSON.stringify(datos.distanciaMedias || []),
     ],
   });
@@ -159,34 +166,27 @@ async function obtenerSnapshot(activoId) {
   return rs.rows[0] || null;
 }
 
-/** Panel completo: activos con alerta activa + su snapshot + sus alertas activas. */
-async function obtenerPanelActivo() {
-  const rs = await db.execute(`
-    SELECT u.id, u.nombre, u.mercado, u.categoria, u.divisa,
+/**
+ * Lista de alertas activas, mas nuevas primero, opcionalmente filtradas por
+ * timeframe. Una sola consulta (con el contexto del activo - precio, RSI,
+ * tendencias - incluido via LEFT JOIN), sin importar cuantos activos
+ * distintos tengan alerta: evita tanto N+1 consultas como el limite de
+ * peticiones salientes de Cloudflare.
+ */
+async function listarAlertasActivas({ timeframe } = {}) {
+  const base = `
+    SELECT a.id, a.activo_id, a.nombre_activo, a.tv_symbol, a.mercado, a.timeframe,
+           a.media_rapida, a.media_lenta, a.direccion, a.nivel, a.mensaje,
+           a.precio_en_cruce, a.detectada_en,
            s.precio_actual, s.var_dia, s.var_5d, s.var_1m, s.var_3m, s.var_ytd, s.var_1a, s.var_5a,
-           s.rsi, s.tendencias_json, s.distancia_medias_json, s.actualizado_en
-    FROM universo_activos u
-    JOIN (SELECT DISTINCT activo_id FROM alertas WHERE estado = 'activa') a ON a.activo_id = u.id
-    LEFT JOIN snapshot_activo s ON s.activo_id = u.id
-    ORDER BY s.actualizado_en DESC
-  `);
-  // Una sola consulta para todas las alertas activas, en vez de una por
-  // activo: evita N+1 consultas contra Turso (mas lento y, en el caso de
-  // las Functions de Cloudflare, supera el limite de peticiones salientes).
-  const todasAlertas = await db.execute("SELECT * FROM alertas WHERE estado = 'activa' ORDER BY detectada_en DESC");
-  const alertasPorActivo = new Map();
-  todasAlertas.rows.forEach((alerta) => {
-    if (!alertasPorActivo.has(alerta.activo_id)) alertasPorActivo.set(alerta.activo_id, []);
-    alertasPorActivo.get(alerta.activo_id).push(alerta);
-  });
-
-  const activos = rs.rows;
-  activos.forEach((act) => {
-    act.alertas = alertasPorActivo.get(act.id) || [];
-    act.tendencias = JSON.parse(act.tendencias_json || '{}');
-    act.distanciaMedias = JSON.parse(act.distancia_medias_json || '[]');
-  });
-  return activos;
+           s.rsi, s.tendencias_json
+    FROM alertas a
+    LEFT JOIN snapshot_activo s ON s.activo_id = a.activo_id
+    WHERE a.estado = 'activa'`;
+  const rs = timeframe
+    ? await db.execute({ sql: `${base} AND a.timeframe = ? ORDER BY a.detectada_en DESC`, args: [timeframe] })
+    : await db.execute(`${base} ORDER BY a.detectada_en DESC`);
+  return rs.rows.map((r) => ({ ...r, tendencias: JSON.parse(r.tendencias_json || '{}') }));
 }
 
 // ---------- Log de ciclos ----------
@@ -224,9 +224,10 @@ module.exports = {
   listarActivosConAlertaActiva,
   listarAlertasActivasDeActivo,
   listarHistorico,
+  eliminarAlerta,
   guardarSnapshot,
   obtenerSnapshot,
-  obtenerPanelActivo,
+  listarAlertasActivas,
   iniciarLogCiclo,
   cerrarLogCiclo,
 };

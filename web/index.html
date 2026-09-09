@@ -11,8 +11,7 @@
   :root{
     --bg:#0A0E14; --surface:#121821; --surface-2:#1A2129; --border:#232C38;
     --text:#EDF1F5; --text-2:#8B98A8; --text-3:#5C6773;
-    --gold:#E3A548; --gold-dim:#8A6B33;
-    --up:#35D08C; --down:#F0555A; --lateral:#6B7684;
+    --gold:#E3A548; --up:#35D08C; --down:#F0555A; --lateral:#6B7684;
     --font-display:'Space Grotesk',system-ui,sans-serif;
     --font-body:'Inter',system-ui,sans-serif;
     --font-mono:'JetBrains Mono',ui-monospace,monospace;
@@ -22,30 +21,25 @@
   body{padding-bottom:3rem;}
   a{color:var(--gold);}
 
-  /* ---------- Ticker rail ---------- */
-  .ticker-rail{
-    background:var(--surface); border-bottom:1px solid var(--border);
-    overflow:hidden; white-space:nowrap; padding:8px 0;
-  }
+  .ticker-rail{background:var(--surface); border-bottom:1px solid var(--border); overflow:hidden; white-space:nowrap; padding:8px 0;}
   .ticker-track{display:inline-block; animation:scroll 40s linear infinite;}
-  .ticker-rail:hover .ticker-track, .ticker-track.paused{animation-play-state:paused;}
+  .ticker-rail:hover .ticker-track{animation-play-state:paused;}
   @keyframes scroll{from{transform:translateX(0);} to{transform:translateX(-50%);}}
   .ticker-item{display:inline-flex; align-items:center; gap:6px; padding:0 20px; font-family:var(--font-mono); font-size:13px; color:var(--text-2);}
   .ticker-item b{color:var(--text); font-weight:500;}
   .ticker-up{color:var(--up);} .ticker-down{color:var(--down);}
   @media (prefers-reduced-motion: reduce){ .ticker-track{animation:none;} }
 
-  /* ---------- Header ---------- */
-  header{
-    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
-    gap:12px; padding:20px 24px; max-width:1400px; margin:0 auto;
-  }
+  header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:20px 24px; max-width:1100px; margin:0 auto;}
   .brand{display:flex; align-items:baseline; gap:10px;}
-  .brand h1{font-family:var(--font-display); font-weight:600; font-size:20px; margin:0; letter-spacing:0.2px;}
+  .brand h1{font-family:var(--font-display); font-weight:600; font-size:20px; margin:0;}
   .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--up); display:inline-block; margin-right:6px; box-shadow:0 0 0 3px rgba(53,208,140,0.15);}
   .status{font-size:12px; color:var(--text-3); font-family:var(--font-mono);}
+  .enlace-universo{font-size:12px; color:var(--gold); text-decoration:none; font-family:var(--font-mono);}
 
-  .toggles{display:flex; flex-wrap:wrap; gap:8px;}
+  .barra-filtros{max-width:1100px; margin:0 auto; padding:0 24px 12px; display:flex; flex-wrap:wrap; gap:18px; align-items:center;}
+  .grupo-filtro{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+  .grupo-filtro .lbl{font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:0.5px; margin-right:4px;}
   .chip{
     font-family:var(--font-mono); font-size:12px; padding:6px 12px; border-radius:999px;
     border:1px solid var(--border); background:var(--surface); color:var(--text-2);
@@ -54,75 +48,46 @@
   .chip.on{border-color:var(--gold); color:var(--gold);}
   .chip:hover{border-color:var(--text-3);}
 
-  /* ---------- Grid ---------- */
-  main{max-width:1400px; margin:0 auto; padding:0 24px;}
-  .grid{
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));
-    gap:16px; margin-top:8px;
-  }
+  main{max-width:1100px; margin:0 auto; padding:0 24px;}
+  .lista{display:flex; flex-direction:column; gap:10px; margin-top:8px;}
 
-  /* ---------- Card ---------- */
-  .card{
-    background:var(--surface); border:1px solid var(--border); border-radius:14px;
-    padding:18px 20px; display:flex; flex-direction:column; gap:14px;
-  }
-  .card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
-  .card-head h2{font-family:var(--font-display); font-size:16px; font-weight:600; margin:0;}
-  .card-head .mercado{font-size:12px; color:var(--text-3); margin-top:2px;}
-  .nivel-badge{
-    font-family:var(--font-mono); font-size:11px; font-weight:600; padding:3px 9px;
-    border-radius:6px; white-space:nowrap; height:fit-content;
-  }
+  .fila{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; transition:opacity .2s, transform .2s;}
+  .fila.saliendo{opacity:0; transform:translateX(20px);}
+  .fila-principal{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .nivel-badge{font-family:var(--font-mono); font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; white-space:nowrap;}
   .nivel-1{background:rgba(79,143,224,0.15); color:#7CB2F0;}
   .nivel-2{background:rgba(227,165,72,0.18); color:var(--gold);}
   .nivel-3{background:rgba(240,85,90,0.18); color:#F58489;}
+  .fila-nombre{font-family:var(--font-display); font-weight:600; font-size:15px;}
+  .fila-simbolo{font-family:var(--font-mono); font-size:12px; color:var(--text-3); font-weight:400; margin-left:6px;}
+  .fila-mercado{font-size:12px; color:var(--text-3); margin-left:8px;}
+  .tf-badge{font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:6px; background:var(--surface-2); color:var(--text-2); white-space:nowrap;}
+  .fila-tiempo{font-family:var(--font-mono); font-size:11px; color:var(--text-3); margin-left:auto; white-space:nowrap;}
+  .btn-borrar{
+    background:none; border:1px solid var(--border); color:var(--text-3); border-radius:6px;
+    width:26px; height:26px; cursor:pointer; font-size:14px; line-height:1; flex-shrink:0;
+  }
+  .btn-borrar:hover{border-color:var(--down); color:var(--down);}
 
-  .precio-row{display:flex; align-items:baseline; gap:10px;}
-  .precio{font-family:var(--font-mono); font-size:28px; font-weight:600;}
-  .delta{font-family:var(--font-mono); font-size:14px; font-weight:500; padding:2px 8px; border-radius:6px;}
+  .fila-mensaje{font-size:13px; color:var(--text-2); margin-top:8px; line-height:1.5;}
+
+  .fila-contexto{display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); font-family:var(--font-mono); font-size:12px;}
+  .precio{font-weight:600;}
+  .delta{padding:2px 7px; border-radius:6px; font-weight:500;}
   .delta.up{color:var(--up); background:rgba(53,208,140,0.1);}
   .delta.down{color:var(--down); background:rgba(240,85,90,0.1);}
+  .rsi-inline{color:var(--text-2);}
+  .tendencias-inline{display:flex; gap:6px; color:var(--text-2);}
+  .tendencias-inline .arrow-up{color:var(--up);} .tendencias-inline .arrow-down{color:var(--down);} .tendencias-inline .arrow-lat{color:var(--lateral);}
 
-  .variaciones{display:grid; grid-template-columns:repeat(4,1fr); gap:8px 4px; font-family:var(--font-mono); font-size:12px;}
-  .variaciones div{display:flex; flex-direction:column; gap:2px;}
-  .variaciones .lbl{color:var(--text-3); font-size:10px; text-transform:uppercase; letter-spacing:0.5px;}
-
-  .tendencias{display:flex; gap:6px; flex-wrap:wrap;}
-  .tf-pill{
-    font-family:var(--font-mono); font-size:11px; padding:4px 8px; border-radius:6px;
-    display:flex; align-items:center; gap:4px; background:var(--surface-2); color:var(--text-2);
-  }
-  .tf-pill .arrow-up{color:var(--up);} .tf-pill .arrow-down{color:var(--down);} .tf-pill .arrow-lat{color:var(--lateral);}
-
-  .alerta-box{
-    border-left:2px solid var(--gold); background:rgba(227,165,72,0.06);
-    padding:10px 12px; border-radius:0 8px 8px 0; font-size:13px; line-height:1.5;
-  }
-  .alerta-box .tiempo{display:block; margin-top:4px; font-family:var(--font-mono); font-size:11px; color:var(--text-3);}
-
-  .distancias{display:flex; flex-direction:column; gap:6px;}
-  .distancia-item{display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px;}
-  .distancia-item .et{width:110px; color:var(--text-2); flex-shrink:0;}
-  .barra{flex:1; height:5px; background:var(--surface-2); border-radius:3px; overflow:hidden; position:relative;}
-  .barra span{position:absolute; top:0; bottom:0; border-radius:3px;}
-  .distancia-item .pct{width:52px; text-align:right;}
-
-  .rsi-row{display:flex; align-items:center; justify-content:space-between; font-family:var(--font-mono); font-size:12px; color:var(--text-2);}
-  .rsi-valor{font-size:16px; font-weight:600;}
-  .rsi-zona{font-size:10px; padding:2px 6px; border-radius:4px;}
-
-  .divider{border:none; border-top:1px solid var(--border); margin:0;}
-
-  .empty{
-    text-align:center; padding:80px 20px; color:var(--text-3);
-  }
+  .empty{text-align:center; padding:80px 20px; color:var(--text-3);}
   .empty h2{font-family:var(--font-display); color:var(--text-2); font-weight:600; font-size:18px;}
 
-  footer{max-width:1400px; margin:32px auto 0; padding:0 24px; color:var(--text-3); font-size:12px;}
+  footer{max-width:1100px; margin:32px auto 0; padding:0 24px; color:var(--text-3); font-size:12px;}
 
   @media (max-width:600px){
-    header{padding:16px;} main{padding:0 16px;}
-    .precio{font-size:24px;}
+    header{padding:16px;} main{padding:0 16px;} .barra-filtros{padding:0 16px 12px;}
+    .fila-tiempo{margin-left:0; width:100%; order:10;}
   }
 </style>
 </head>
@@ -131,19 +96,27 @@
 <div class="ticker-rail"><div class="ticker-track" id="tickerTrack"></div></div>
 
 <header>
-  <div class="brand">
-    <h1><span class="dot"></span>Monitor de Cruces</h1>
-  </div>
+  <div class="brand"><h1><span class="dot"></span>Monitor de Cruces</h1></div>
   <div class="status" id="statusTxt">cargando...</div>
-  <div class="toggles" id="toggles"></div>
-  <a href="/universo.html" style="font-size:12px;color:var(--gold);text-decoration:none;font-family:var(--font-mono);">+ gestionar activos</a>
+  <a class="enlace-universo" href="/universo.html">+ gestionar activos</a>
 </header>
 
+<div class="barra-filtros">
+  <div class="grupo-filtro">
+    <span class="lbl">Timeframe</span>
+    <div id="filtroTf"></div>
+  </div>
+  <div class="grupo-filtro">
+    <span class="lbl">Panel</span>
+    <div id="togglesVarios"></div>
+  </div>
+</div>
+
 <main>
-  <div class="grid" id="grid"></div>
+  <div class="lista" id="lista"></div>
   <div class="empty" id="empty" style="display:none;">
     <h2>Sin alertas activas</h2>
-    <p>No hay cruces detectados en las últimas 36 horas. En cuanto se detecte uno, aparecerá aquí.</p>
+    <p>No hay cruces detectados en las últimas 36 horas para este filtro.</p>
   </div>
 </main>
 
@@ -155,44 +128,33 @@ const TF_LABELS = {15:'15m', 30:'30m', 60:'1h', 240:'4h', '1D':'1D'};
 const DEMO_DATA = {
   mostrarRsi: true,
   timeframes: [
-    {timeframe:'15', etiqueta:'15m', mostrar_en_panel:1},
-    {timeframe:'30', etiqueta:'30m', mostrar_en_panel:1},
-    {timeframe:'60', etiqueta:'1h', mostrar_en_panel:1},
-    {timeframe:'240', etiqueta:'4h', mostrar_en_panel:1},
-    {timeframe:'1D', etiqueta:'1D', mostrar_en_panel:1},
+    {timeframe:'15', etiqueta:'15m'}, {timeframe:'30', etiqueta:'30m'}, {timeframe:'60', etiqueta:'1h'},
+    {timeframe:'240', etiqueta:'4h'}, {timeframe:'1D', etiqueta:'1D'},
   ],
-  activos: [
+  alertas: [
     {
-      id:1, nombre:'Inditex', mercado:'BME (Madrid)', precio_actual:38.42,
-      var_dia:0.84, var_5d:1.2, var_1m:-0.3, var_3m:4.1, var_ytd:9.4, var_1a:12.7, var_5a:65.6,
-      rsi:58, tendencias:{15:'ALCISTA',30:'ALCISTA',60:'ALCISTA',240:'LATERAL','1D':'ALCISTA'},
-      distanciaMedias:[{etiqueta:'EMA 20 (1h)', pct:0.6},{etiqueta:'EMA 50 (1h)', pct:-0.2}],
-      alertas:[{mensaje:'EMA 20 ha cruzado EMA 50 al alza en 1 hora. Nivel 2.', nivel:2, direccion:'ALCISTA', detectada_en: hace(2,14)}],
+      id:'demo1', nombre_activo:'Inditex', tv_symbol:'BME:ITX', mercado:'BME (Madrid)', timeframe:'60',
+      media_rapida:'EMA 9', media_lenta:'EMA 21', direccion:'ALCISTA', nivel:2,
+      mensaje:'EMA 9 ha cruzado EMA 21 al alza en 1 hora. Nivel 2. Precio: 38.42. ' + new Date().toLocaleString('es-ES'),
+      precio_actual:38.42, var_dia:0.84, rsi:58, tendencias:{15:'ALCISTA',30:'ALCISTA',60:'ALCISTA',240:'LATERAL','1D':'ALCISTA'},
+      detectada_en: hace(0,14),
     },
     {
-      id:2, nombre:'Bitcoin', mercado:'Exchange Cripto', precio_actual:68420,
-      var_dia:-1.42, var_5d:-3.1, var_1m:5.6, var_3m:22.4, var_ytd:40.1, var_1a:88.3, var_5a:410.2,
-      rsi:31, tendencias:{15:'BAJISTA',30:'BAJISTA',60:'BAJISTA',240:'BAJISTA','1D':'LATERAL'},
-      distanciaMedias:[{etiqueta:'SMA 50 (4h)', pct:-2.1},{etiqueta:'SMA 200 (4h)', pct:-6.4}],
-      alertas:[{mensaje:'SMA 50 ha cruzado SMA 200 a la baja en 4 horas. Nivel 3.', nivel:3, direccion:'BAJISTA', detectada_en: hace(8,3)}],
-    },
-    {
-      id:3, nombre:'Apple Inc.', mercado:'NASDAQ', precio_actual:231.07,
-      var_dia:0.21, var_5d:0.9, var_1m:2.8, var_3m:6.0, var_ytd:14.2, var_1a:24.5, var_5a:180.9,
-      rsi:64, tendencias:{15:'LATERAL',30:'ALCISTA',60:'ALCISTA',240:'ALCISTA','1D':'ALCISTA'},
-      distanciaMedias:[{etiqueta:'EMA 50 (4h)', pct:1.1},{etiqueta:'EMA 200 (4h)', pct:3.8}],
-      alertas:[{mensaje:'EMA 50 ha cruzado EMA 200 al alza en 4 horas. Nivel 3.', nivel:3, direccion:'ALCISTA', detectada_en: hace(20,40)}],
+      id:'demo2', nombre_activo:'Bitcoin', tv_symbol:'COINBASE:BTCUSD', mercado:'Exchange Cripto', timeframe:'240',
+      media_rapida:'SMA 50', media_lenta:'SMA 200', direccion:'BAJISTA', nivel:3,
+      mensaje:'SMA 50 ha cruzado SMA 200 a la baja en 4 horas. Nivel 3. Precio: 68420. ' + new Date().toLocaleString('es-ES'),
+      precio_actual:68420, var_dia:-1.42, rsi:31, tendencias:{15:'BAJISTA',30:'BAJISTA',60:'BAJISTA',240:'BAJISTA','1D':'LATERAL'},
+      detectada_en: hace(8,3),
     },
   ],
 };
 function hace(h,m){ const d=new Date(); d.setHours(d.getHours()-h, d.getMinutes()-m); return d.toISOString(); }
 
-function fmtPct(v){ if(v===null||v===undefined) return '—'; const s=v>=0?'+':''; return s+v.toFixed(1)+'%'; }
-function claseDelta(v){ return v>=0?'up':'down'; }
+function fmtPct(v){ if(v===null||v===undefined) return '—'; const s=v>=0?'+':''; return s+v.toFixed(2)+'%'; }
 function tiempoRelativo(iso){
-  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMs = Date.now() - new Date(iso.endsWith('Z')?iso:iso+'Z').getTime();
   const h = Math.floor(diffMs/3600000), m = Math.floor((diffMs%3600000)/60000);
-  if(h<1) return `hace ${m} min`;
+  if(h<1) return `hace ${Math.max(m,0)} min`;
   return `hace ${h}h ${m}min`;
 }
 function flechaTendencia(t){
@@ -200,140 +162,127 @@ function flechaTendencia(t){
   if(t==='BAJISTA') return '<span class="arrow-down">▼</span>';
   return '<span class="arrow-lat">●</span>';
 }
-function zonaRsi(v){
-  if(v>=70) return {texto:'sobrecompra', color:'var(--down)'};
-  if(v<=30) return {texto:'sobreventa', color:'var(--up)'};
-  return {texto:'neutral', color:'var(--text-3)'};
-}
 
-let tfVisibles = new Set(['15','30','60','240','1D']);
+let tfFiltro = null;
 let rsiVisible = true;
+let tendenciasVisible = true;
 
-function renderToggles(timeframes, mostrarRsi){
-  rsiVisible = mostrarRsi;
-  const cont = document.getElementById('toggles');
+function renderFiltrosTf(timeframes){
+  const cont = document.getElementById('filtroTf');
   cont.innerHTML = '';
+  const chipTodos = document.createElement('div');
+  chipTodos.className = 'chip' + (tfFiltro===null?' on':'');
+  chipTodos.textContent = 'Todos';
+  chipTodos.onclick = () => { tfFiltro = null; cargar(); };
+  cont.appendChild(chipTodos);
   timeframes.forEach(tf=>{
-    const on = !!tf.mostrar_en_panel;
-    if(on) tfVisibles.add(String(tf.timeframe)); else tfVisibles.delete(String(tf.timeframe));
     const chip = document.createElement('div');
-    chip.className = 'chip' + (on?' on':'');
+    chip.className = 'chip' + (tfFiltro===String(tf.timeframe)?' on':'');
     chip.textContent = TF_LABELS[tf.timeframe] || tf.etiqueta;
-    chip.onclick = () => {
-      const activo = tfVisibles.has(String(tf.timeframe));
-      if(activo) tfVisibles.delete(String(tf.timeframe)); else tfVisibles.add(String(tf.timeframe));
-      chip.classList.toggle('on');
-      render(window.__ultimoPanel);
-    };
+    chip.onclick = () => { tfFiltro = String(tf.timeframe); cargar(); };
     cont.appendChild(chip);
   });
+}
+
+function renderTogglesVarios(mostrarRsi){
+  rsiVisible = mostrarRsi;
+  const cont = document.getElementById('togglesVarios');
+  cont.innerHTML = '';
   const chipRsi = document.createElement('div');
   chipRsi.className = 'chip' + (rsiVisible?' on':'');
   chipRsi.textContent = 'RSI';
   chipRsi.onclick = () => { rsiVisible = !rsiVisible; chipRsi.classList.toggle('on'); render(window.__ultimoPanel); };
   cont.appendChild(chipRsi);
+  const chipTend = document.createElement('div');
+  chipTend.className = 'chip' + (tendenciasVisible?' on':'');
+  chipTend.textContent = 'Tendencias';
+  chipTend.onclick = () => { tendenciasVisible = !tendenciasVisible; chipTend.classList.toggle('on'); render(window.__ultimoPanel); };
+  cont.appendChild(chipTend);
 }
 
-function renderTicker(activos){
+function renderTicker(alertas){
   const track = document.getElementById('tickerTrack');
-  if(!activos.length){ track.innerHTML = '<span class="ticker-item">Sin alertas activas</span>'; return; }
-  const items = activos.map(a=>{
-    const al = a.alertas[0];
-    const dir = al ? al.direccion : null;
-    const cls = dir==='ALCISTA' ? 'ticker-up' : dir==='BAJISTA' ? 'ticker-down' : '';
-    const flecha = dir==='ALCISTA' ? '▲' : dir==='BAJISTA' ? '▼' : '●';
-    return `<span class="ticker-item"><b>${a.nombre}</b> <span class="${cls}">${flecha} ${al?al.mensaje.split('.')[0]:''}</span></span>`;
+  if(!alertas.length){ track.innerHTML = '<span class="ticker-item">Sin alertas activas</span>'; return; }
+  const items = alertas.slice(0,30).map(a=>{
+    const cls = a.direccion==='ALCISTA' ? 'ticker-up' : a.direccion==='BAJISTA' ? 'ticker-down' : '';
+    const flecha = a.direccion==='ALCISTA' ? '▲' : a.direccion==='BAJISTA' ? '▼' : '●';
+    return `<span class="ticker-item"><b>${a.nombre_activo}</b> <span class="${cls}">${flecha} ${a.media_rapida}/${a.media_lenta} ${TF_LABELS[a.timeframe]||a.timeframe}</span></span>`;
   }).join('');
-  track.innerHTML = items + items; // duplicado para el scroll continuo
+  track.innerHTML = items + items;
+}
+
+async function borrarAlerta(id, elFila){
+  elFila.classList.add('saliendo');
+  try{
+    const resp = await fetch(`/api/alertas/${encodeURIComponent(id)}`, { method:'DELETE' });
+    if(!resp.ok) throw new Error('No se pudo borrar');
+    setTimeout(()=>{
+      window.__ultimoPanel.alertas = window.__ultimoPanel.alertas.filter(a=>a.id!==id);
+      render(window.__ultimoPanel);
+    }, 200);
+  }catch(err){
+    elFila.classList.remove('saliendo');
+    alert('No se pudo borrar la alerta: ' + err.message);
+  }
 }
 
 function render(panel){
   window.__ultimoPanel = panel;
-  const grid = document.getElementById('grid');
+  const lista = document.getElementById('lista');
   const empty = document.getElementById('empty');
-  document.getElementById('statusTxt').textContent = `en vivo · ${panel.activos.length} activo(s) con alerta`;
-  renderTicker(panel.activos);
+  document.getElementById('statusTxt').textContent = `en vivo · ${panel.alertas.length} alerta(s)${tfFiltro?` · ${TF_LABELS[tfFiltro]||tfFiltro}`:''}`;
+  renderTicker(panel.alertas);
 
-  if(!panel.activos.length){ grid.innerHTML=''; empty.style.display='block'; return; }
+  if(!panel.alertas.length){ lista.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
-  grid.innerHTML = panel.activos.map(a=>{
-    const nivel = a.alertas[0] ? a.alertas[0].nivel : null;
-    const tfHtml = Object.keys(a.tendencias||{})
-      .filter(tf=>tfVisibles.has(String(tf)))
-      .map(tf=>`<span class="tf-pill">${TF_LABELS[tf]||tf} ${flechaTendencia(a.tendencias[tf])}</span>`)
-      .join('');
-    const alertasHtml = (a.alertas||[]).slice(0,2).map(al=>`
-      <div class="alerta-box">${al.mensaje}<span class="tiempo">${tiempoRelativo(al.detectada_en)}</span></div>
-    `).join('');
-    const distHtml = (a.distanciaMedias||[]).map(d=>{
-      const pct = d.pct===null||d.pct===undefined ? 0 : d.pct;
-      const w = Math.min(Math.abs(pct)*8, 50);
-      const color = pct>=0 ? 'var(--up)' : 'var(--down)';
-      const left = pct>=0 ? '50%' : (50-w)+'%';
-      return `<div class="distancia-item">
-        <span class="et">${d.etiqueta}</span>
-        <span class="barra"><span style="left:${left}; width:${w}%; background:${color};"></span></span>
-        <span class="pct">${fmtPct(d.pct)}</span>
-      </div>`;
-    }).join('');
-    const rsiHtml = rsiVisible && a.rsi!==null && a.rsi!==undefined ? `
-      <div class="divider"></div>
-      <div class="rsi-row">
-        <span>RSI (14, diario)</span>
-        <span style="display:flex; align-items:center; gap:8px;">
-          <span class="rsi-valor">${Math.round(a.rsi)}</span>
-          <span class="rsi-zona" style="color:${zonaRsi(a.rsi).color}; background:${zonaRsi(a.rsi).color}18;">${zonaRsi(a.rsi).texto}</span>
-        </span>
-      </div>` : '';
+  lista.innerHTML = panel.alertas.map(a=>{
+    const tendencias = a.tendencias || {};
+    const tendHtml = tendenciasVisible && Object.keys(tendencias).length
+      ? `<span class="tendencias-inline">${Object.keys(tendencias).map(tf=>`${TF_LABELS[tf]||tf}${flechaTendencia(tendencias[tf])}`).join(' ')}</span>`
+      : '';
+    const rsiHtml = rsiVisible && a.rsi!==null && a.rsi!==undefined
+      ? `<span class="rsi-inline">RSI ${Math.round(a.rsi)}</span>` : '';
+    const precioHtml = a.precio_actual!=null
+      ? `<span class="precio">${a.precio_actual.toLocaleString('es-ES',{maximumFractionDigits:2})}</span> <span class="delta ${a.var_dia>=0?'up':'down'}">${fmtPct(a.var_dia)} hoy</span>`
+      : '';
 
     return `
-    <div class="card">
-      <div class="card-head">
-        <div>
-          <h2>${a.nombre}</h2>
-          <div class="mercado">${a.mercado||''}</div>
-        </div>
-        ${nivel? `<span class="nivel-badge nivel-${nivel}">Nivel ${nivel}</span>` : ''}
+    <div class="fila" data-id="${a.id}">
+      <div class="fila-principal">
+        <span class="nivel-badge nivel-${a.nivel||1}">Nivel ${a.nivel??'—'}</span>
+        <span class="fila-nombre">${a.nombre_activo}<span class="fila-simbolo">${a.tv_symbol||''}</span></span>
+        <span class="fila-mercado">${a.mercado||''}</span>
+        <span class="tf-badge">${TF_LABELS[a.timeframe]||a.timeframe}</span>
+        <span class="fila-tiempo">${tiempoRelativo(a.detectada_en)}</span>
+        <button class="btn-borrar" title="Descartar esta alerta">✕</button>
       </div>
-
-      <div class="precio-row">
-        <span class="precio">${a.precio_actual!=null? a.precio_actual.toLocaleString('es-ES',{maximumFractionDigits:2}) : '—'}</span>
-        <span class="delta ${claseDelta(a.var_dia||0)}">${fmtPct(a.var_dia)} hoy</span>
-      </div>
-
-      <div class="variaciones">
-        <div><span class="lbl">5 días</span><span class="${claseDelta(a.var_5d||0)}" style="color:var(--${(a.var_5d||0)>=0?'up':'down'})">${fmtPct(a.var_5d)}</span></div>
-        <div><span class="lbl">1 mes</span><span style="color:var(--${(a.var_1m||0)>=0?'up':'down'})">${fmtPct(a.var_1m)}</span></div>
-        <div><span class="lbl">3 meses</span><span style="color:var(--${(a.var_3m||0)>=0?'up':'down'})">${fmtPct(a.var_3m)}</span></div>
-        <div><span class="lbl">En el año</span><span style="color:var(--${(a.var_ytd||0)>=0?'up':'down'})">${fmtPct(a.var_ytd)}</span></div>
-        <div><span class="lbl">1 año</span><span style="color:var(--${(a.var_1a||0)>=0?'up':'down'})">${fmtPct(a.var_1a)}</span></div>
-        <div><span class="lbl">5 años</span><span style="color:var(--${(a.var_5a||0)>=0?'up':'down'})">${fmtPct(a.var_5a)}</span></div>
-      </div>
-
-      ${tfHtml ? `<div class="divider"></div><div class="tendencias">${tfHtml}</div>` : ''}
-
-      <div class="divider"></div>
-      ${alertasHtml}
-
-      ${distHtml ? `<div class="divider"></div><div class="distancias">${distHtml}</div>` : ''}
-
-      ${rsiHtml}
+      <div class="fila-mensaje">${a.mensaje}</div>
+      ${(precioHtml || rsiHtml || tendHtml) ? `<div class="fila-contexto">${precioHtml}${rsiHtml}${tendHtml}</div>` : ''}
     </div>`;
   }).join('');
+
+  lista.querySelectorAll('.btn-borrar').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      const fila = ev.target.closest('.fila');
+      borrarAlerta(fila.dataset.id, fila);
+    });
+  });
 }
 
 async function cargar(){
   try{
-    const resp = await fetch('/api/panel');
+    const qs = tfFiltro ? `?timeframe=${encodeURIComponent(tfFiltro)}` : '';
+    const resp = await fetch('/api/panel' + qs);
     if(!resp.ok) throw new Error('sin servidor');
     const data = await resp.json();
-    renderToggles(data.timeframes, data.mostrarRsi);
+    renderFiltrosTf(data.timeframes || []);
+    renderTogglesVarios(data.mostrarRsi !== false);
     render(data);
   }catch(err){
-    // Sin backend disponible (vista previa estatica): usamos datos de ejemplo.
     document.getElementById('statusTxt').textContent = 'vista previa (datos de ejemplo)';
-    renderToggles(DEMO_DATA.timeframes, DEMO_DATA.mostrarRsi);
+    renderFiltrosTf(DEMO_DATA.timeframes);
+    renderTogglesVarios(DEMO_DATA.mostrarRsi);
     render(DEMO_DATA);
   }
 }

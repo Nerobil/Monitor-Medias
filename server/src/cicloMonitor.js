@@ -7,7 +7,7 @@ const {
 const { calcularVariaciones } = require('./variacion');
 const { clasificarTendencia } = require('./tendencia');
 const { detectarCruce } = require('./crossDetector');
-const { construirMensaje, construirId, etiquetaTimeframe } = require('./importancia');
+const { construirMensaje, construirId } = require('./importancia');
 const { obtenerVelas, crearCliente } = require('./tvFetcher');
 const { despacharAvisos } = require('./notificadores');
 
@@ -16,11 +16,6 @@ const PAUSA_ENTRE_ACTIVOS_MS = Number(process.env.PAUSA_ENTRE_ACTIVOS_MS || 400)
 
 function log(msg) {
   console.log(`[${new Date().toLocaleString('es-ES')}] ${msg}`);
-}
-
-function pctDistancia(precio, media) {
-  if (media === null || media === undefined || !Number.isFinite(media)) return null;
-  return ((precio - media) / media) * 100;
 }
 
 function esperar(ms) {
@@ -63,7 +58,6 @@ async function procesarActivo({
     timeframesConfig.filter((t) => t.vigilar_cruces).map((t) => String(t.timeframe)),
   );
   const alertasNuevas = [];
-  const distanciaMedias = [];
 
   for (const regla of reglas) {
     if (!tfConVigilancia.has(String(regla.timeframe))) continue;
@@ -86,14 +80,6 @@ async function procesarActivo({
 
       const direccion = detectarCruce(serieRapida[i], serieRapida[i - 1], serieLenta[i], serieLenta[i - 1]);
 
-      const tfEtq = etiquetaTimeframe(regla.timeframe);
-      if (serieRapida[i] !== null) {
-        distanciaMedias.push({ etiqueta: `${regla.media_rapida} (${tfEtq})`, pct: pctDistancia(precioActual, serieRapida[i]) });
-      }
-      if (serieLenta[i] !== null) {
-        distanciaMedias.push({ etiqueta: `${regla.media_lenta} (${tfEtq})`, pct: pctDistancia(precioActual, serieLenta[i]) });
-      }
-
       if (direccion) {
         const id = construirId(activo.nombre, regla.timeframe, regla.media_rapida, regla.media_lenta, velas[i].time);
         // eslint-disable-next-line no-await-in-loop
@@ -113,6 +99,7 @@ async function procesarActivo({
             id,
             activoId: activo.id,
             nombreActivo: activo.nombre,
+            tvSymbol: activo.tv_symbol,
             mercado: activo.mercado,
             timeframe: regla.timeframe,
             mediaRapida: regla.media_rapida,
@@ -149,7 +136,6 @@ async function procesarActivo({
       var5a: variaciones.var5a,
       rsi: rsiValor,
       tendencias,
-      distanciaMedias,
     },
   };
 }

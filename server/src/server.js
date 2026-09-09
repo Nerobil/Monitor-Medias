@@ -10,13 +10,23 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', '..', 'web')));
 
-// ---------- Panel: activos con alerta activa (<36h) ----------
+// ---------- Panel: lista de alertas activas (<36h), mas nuevas primero ----------
 app.get('/api/panel', async (req, res) => {
   try {
-    const activos = await repo.obtenerPanelActivo();
+    const alertas = await repo.listarAlertasActivas({ timeframe: req.query.timeframe });
     const timeframes = await repo.obtenerTimeframesConfig();
     const mostrarRsi = (await repo.obtenerConfigGeneral('mostrar_rsi', 'true')) === 'true';
-    res.json({ activos, timeframes, mostrarRsi });
+    res.json({ alertas, timeframes, mostrarRsi });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- Borrar una alerta manualmente (independiente del borrado por antiguedad) ----------
+app.delete('/api/alertas/:id', async (req, res) => {
+  try {
+    const borrada = await repo.eliminarAlerta(req.params.id);
+    res.json({ ok: true, borrada });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

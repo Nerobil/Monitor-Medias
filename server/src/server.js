@@ -98,6 +98,65 @@ app.post('/api/universo/:id/estado', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------- Medias moviles configuradas (posiciones 1-4; 1 y 2 alimentan la tendencia del panel) ----------
+app.get('/api/medias', async (req, res) => {
+  try {
+    const medias = await repo.obtenerMediasConfig();
+    res.json({ medias });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/medias', async (req, res) => {
+  try {
+    const { posicion, tipo, periodo } = req.body;
+    if (![1, 2, 3, 4].includes(Number(posicion)) || !tipo || !periodo) {
+      return res.status(400).json({ error: 'posicion (1-4), tipo y periodo son obligatorios' });
+    }
+    await repo.guardarMediaConfig({ posicion: Number(posicion), tipo, periodo: Number(periodo) });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ---------- Niveles de importancia (que cruces de medias se vigilan y con que nivel) ----------
+app.get('/api/niveles', async (req, res) => {
+  try {
+    const niveles = await repo.listarNivelesImportancia();
+    res.json({ niveles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/niveles', async (req, res) => {
+  try {
+    const {
+      mediaRapida, mediaLenta, timeframe, nivel, descripcion,
+    } = req.body;
+    if (!mediaRapida || !mediaLenta || !timeframe || !nivel) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios: mediaRapida, mediaLenta, timeframe, nivel' });
+    }
+    await repo.guardarNivelImportancia({
+      mediaRapida, mediaLenta, timeframe, nivel, descripcion,
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/niveles/:id', async (req, res) => {
+  try {
+    const borrada = await repo.eliminarNivelImportancia(req.params.id);
+    res.json({ ok: true, borrada });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------- Lanzar un ciclo manualmente (util para probar / boton "Actualizar ahora") ----------
 app.post('/api/ciclo/ejecutar', async (req, res) => {
   try {

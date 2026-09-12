@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Niveles de Importancia — Monitor de Cruces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#121821; --surface-2:#1A2129; --border:#232C38;
+    --text:#EDF1F5; --text-2:#8B98A8; --text-3:#5C6773;
+    --gold:#E3A548; --up:#35D08C; --down:#F0555A;
+    --font-display:'Space Grotesk',system-ui,sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);padding-bottom:4rem;}
+  a{color:var(--gold); text-decoration:none;}
+  header{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-family:var(--font-display);font-size:20px;font-weight:600;margin:0;}
+  .subnav{max-width:900px;margin:0 auto;padding:0 24px 16px;display:flex;gap:14px;font-size:13px;}
+  .subnav a{color:var(--text-2);}
+  .subnav a.actual{color:var(--gold);}
+  main{max-width:900px;margin:0 auto;padding:0 24px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;}
+  .panel h2{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0 0 6px;}
+  .panel .ayuda{font-size:12px;color:var(--text-3);margin:0 0 14px;line-height:1.5;}
+  input,select{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:14px;width:100%;
+  }
+  input:focus,select:focus{outline:1px solid var(--gold);}
+  .fila{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+  .fila > *{flex:1;min-width:110px;}
+  button{
+    background:var(--gold);color:#1A1305;border:none;padding:10px 16px;border-radius:8px;
+    font-family:var(--font-body);font-weight:600;font-size:14px;cursor:pointer;
+  }
+  button.secundario{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  button.peligro{background:rgba(240,85,90,0.12);color:var(--down);border:1px solid rgba(240,85,90,0.3);}
+  button:hover{opacity:0.9;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);}
+  th{color:var(--text-3);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;}
+  td.mono{font-family:var(--font-mono);}
+  .nivel-pill{font-family:var(--font-mono);font-size:11px;font-weight:600;padding:2px 9px;border-radius:6px;display:inline-block;}
+  .nivel-1{background:rgba(79,143,224,0.15);color:#7CB2F0;}
+  .nivel-2{background:rgba(227,165,72,0.18);color:var(--gold);}
+  .nivel-3{background:rgba(240,85,90,0.18);color:#F58489;}
+  .nivel-otro{background:var(--surface-2);color:var(--text-2);}
+  .msg{font-size:13px;padding:10px 12px;border-radius:8px;margin-top:10px;}
+  .msg.ok{background:rgba(53,208,140,0.1);color:var(--up);}
+  .msg.err{background:rgba(240,85,90,0.1);color:var(--down);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Niveles de Importancia</h1>
+  <a href="/">← Volver al panel</a>
+</header>
+<div class="subnav">
+  <a href="/universo.html">Universo de Activos</a>
+  <a href="/niveles.html" class="actual">Niveles de Importancia</a>
+  <a href="/medias.html">Medias Móviles</a>
+</div>
+<main>
+
+  <div class="panel">
+    <h2>Dar de alta una regla</h2>
+    <p class="ayuda">
+      Solo se vigilan y notifican los cruces Media/Media dados de alta aquí. Escribe las medias
+      exactamente como "TIPO PERIODO" (ej. <b>EMA 9</b>, <b>SMA 200</b>) — tipos admitidos: SMA, EMA, WMA, SMMA.
+      Si la combinación media rápida + media lenta + timeframe ya existe, se actualiza su nivel en vez de duplicarla.
+    </p>
+    <div class="fila">
+      <input id="fMediaRapida" placeholder="Media rápida (ej. EMA 9)" />
+      <input id="fMediaLenta" placeholder="Media lenta (ej. EMA 21)" />
+      <select id="fTimeframe">
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="60" selected>1 hora</option>
+        <option value="240">4 horas</option>
+        <option value="1D">Diario</option>
+      </select>
+      <input id="fNivel" type="number" min="1" max="9" placeholder="Nivel (ej. 2)" />
+    </div>
+    <div class="fila">
+      <input id="fDescripcion" placeholder="Descripción (opcional)" />
+    </div>
+    <button onclick="guardarRegla()">Guardar regla</button>
+    <div id="msgAlta"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Reglas dadas de alta</h2>
+    <table>
+      <thead><tr><th>Media rápida</th><th>Media lenta</th><th>Timeframe</th><th>Nivel</th><th>Descripción</th><th></th></tr></thead>
+      <tbody id="tablaNiveles"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+const TF_LABELS = {15:'15 min', 30:'30 min', 60:'1 hora', 240:'4 horas', '1D':'Diario'};
+
+async function guardarRegla(){
+  const body = {
+    mediaRapida: document.getElementById('fMediaRapida').value.trim(),
+    mediaLenta: document.getElementById('fMediaLenta').value.trim(),
+    timeframe: document.getElementById('fTimeframe').value,
+    nivel: Number(document.getElementById('fNivel').value),
+    descripcion: document.getElementById('fDescripcion').value.trim(),
+  };
+  const msg = document.getElementById('msgAlta');
+  if(!body.mediaRapida || !body.mediaLenta || !body.nivel){
+    msg.innerHTML = '<div class="msg err">Media rápida, media lenta y nivel son obligatorios.</div>'; return;
+  }
+  if(!/^[A-Za-z]+ \d+$/.test(body.mediaRapida) || !/^[A-Za-z]+ \d+$/.test(body.mediaLenta)){
+    msg.innerHTML = '<div class="msg err">Formato esperado: "TIPO PERIODO", ej. "EMA 9" (con un espacio).</div>'; return;
+  }
+  try{
+    const resp = await fetch('/api/niveles', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'Error desconocido');
+    msg.innerHTML = '<div class="msg ok">Regla guardada correctamente.</div>';
+    ['fMediaRapida','fMediaLenta','fNivel','fDescripcion'].forEach(id=>document.getElementById(id).value='');
+    cargarTabla();
+  }catch(err){
+    msg.innerHTML = `<div class="msg err">Error: ${err.message}</div>`;
+  }
+}
+
+async function borrarRegla(id){
+  if(!confirm('¿Borrar esta regla? Dejará de vigilarse ese cruce.')) return;
+  try{
+    const resp = await fetch(`/api/niveles/${id}`, {method:'DELETE'});
+    if(!resp.ok) throw new Error('No se pudo borrar');
+    cargarTabla();
+  }catch(err){
+    alert('Error: ' + err.message);
+  }
+}
+
+async function cargarTabla(){
+  const tbody = document.getElementById('tablaNiveles');
+  try{
+    const resp = await fetch('/api/niveles');
+    const data = await resp.json();
+    if(!data.niveles.length){
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-3);">Todavía no hay reglas dadas de alta.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.niveles.map(n=>`
+      <tr>
+        <td class="mono">${n.media_rapida}</td>
+        <td class="mono">${n.media_lenta}</td>
+        <td>${TF_LABELS[n.timeframe]||n.timeframe}</td>
+        <td><span class="nivel-pill nivel-${n.nivel<=3?n.nivel:'otro'}">Nivel ${n.nivel}</span></td>
+        <td style="color:var(--text-2);">${n.descripcion||''}</td>
+        <td><button class="peligro" style="padding:5px 10px;font-size:12px;" onclick="borrarRegla(${n.id})">Borrar</button></td>
+      </tr>
+    `).join('');
+  }catch(err){
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
+  }
+}
+cargarTabla();
+</script>
+</body>
+</html>

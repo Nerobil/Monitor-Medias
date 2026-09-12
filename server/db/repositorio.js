@@ -42,6 +42,15 @@ async function obtenerMediasConfig() {
   return rs.rows.map((r) => ({ ...r, etiqueta: `${r.tipo} ${r.periodo}` }));
 }
 
+/** Da de alta o actualiza una de las 4 posiciones de config_medias (1..4). */
+async function guardarMediaConfig({ posicion, tipo, periodo }) {
+  await db.execute({
+    sql: `INSERT INTO config_medias (posicion, tipo, periodo) VALUES (?, ?, ?)
+          ON CONFLICT(posicion) DO UPDATE SET tipo = excluded.tipo, periodo = excluded.periodo`,
+    args: [posicion, tipo, periodo],
+  });
+}
+
 async function obtenerTimeframesConfig() {
   const rs = await db.execute('SELECT * FROM config_timeframes ORDER BY rowid');
   return rs.rows;
@@ -78,6 +87,28 @@ async function obtenerNivelesImportancia() {
 async function listarNivelesImportancia() {
   const rs = await db.execute('SELECT * FROM niveles_importancia ORDER BY timeframe, nivel');
   return rs.rows;
+}
+
+/**
+ * Da de alta o actualiza una regla de cruce a vigilar. La combinacion
+ * media_rapida/media_lenta/timeframe es unica: si ya existia, se actualiza
+ * el nivel en vez de duplicarla.
+ */
+async function guardarNivelImportancia({
+  mediaRapida, mediaLenta, timeframe, nivel, descripcion,
+}) {
+  await db.execute({
+    sql: `INSERT INTO niveles_importancia (media_rapida, media_lenta, timeframe, nivel, descripcion)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(media_rapida, media_lenta, timeframe) DO UPDATE SET
+            nivel = excluded.nivel, descripcion = excluded.descripcion`,
+    args: [mediaRapida, mediaLenta, timeframe, nivel, descripcion || null],
+  });
+}
+
+async function eliminarNivelImportancia(id) {
+  const rs = await db.execute({ sql: 'DELETE FROM niveles_importancia WHERE id = ?', args: [id] });
+  return rs.rowsAffected > 0;
 }
 
 // ---------- Alertas ----------
@@ -212,12 +243,15 @@ module.exports = {
   crearActivo,
   actualizarActivo,
   obtenerMediasConfig,
+  guardarMediaConfig,
   obtenerTimeframesConfig,
   actualizarTimeframeConfig,
   obtenerConfigGeneral,
   fijarConfigGeneral,
   obtenerNivelesImportancia,
   listarNivelesImportancia,
+  guardarNivelImportancia,
+  eliminarNivelImportancia,
   existeAlerta,
   insertarAlerta,
   archivarAlertasVencidas,

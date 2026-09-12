@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Medias Móviles — Monitor de Cruces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#121821; --surface-2:#1A2129; --border:#232C38;
+    --text:#EDF1F5; --text-2:#8B98A8; --text-3:#5C6773;
+    --gold:#E3A548; --up:#35D08C; --down:#F0555A;
+    --font-display:'Space Grotesk',system-ui,sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);padding-bottom:4rem;}
+  a{color:var(--gold); text-decoration:none;}
+  header{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-family:var(--font-display);font-size:20px;font-weight:600;margin:0;}
+  .subnav{max-width:900px;margin:0 auto;padding:0 24px 16px;display:flex;gap:14px;font-size:13px;}
+  .subnav a{color:var(--text-2);}
+  .subnav a.actual{color:var(--gold);}
+  main{max-width:900px;margin:0 auto;padding:0 24px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+  .panel .ayuda{font-size:12px;color:var(--text-3);margin:0 0 4px;line-height:1.5;}
+  .tarjeta-media{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid var(--border);}
+  .tarjeta-media:last-child{border-bottom:none;}
+  .campo{display:flex;flex-direction:column;gap:5px;}
+  .campo label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.4px;}
+  .campo-tipo select{width:120px;}
+  .campo-periodo input{width:90px;}
+  input,select{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:9px 12px;border-radius:8px;font-family:var(--font-body);font-size:14px;
+  }
+  input:focus,select:focus{outline:1px solid var(--gold);}
+  .info-posicion{flex:1;min-width:200px;}
+  .info-posicion .titulo{font-family:var(--font-display);font-weight:600;font-size:14px;}
+  .info-posicion .desc{font-size:12px;color:var(--text-3);margin-top:2px;}
+  button{
+    background:var(--gold);color:#1A1305;border:none;padding:9px 16px;border-radius:8px;
+    font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;height:38px;
+  }
+  button:hover{opacity:0.9;}
+  .msg{font-size:12px;padding:6px 0;color:var(--up);}
+  .msg.err{color:var(--down);}
+  .etiqueta-actual{font-family:var(--font-mono);color:var(--gold);font-size:13px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Medias Móviles</h1>
+  <a href="/">← Volver al panel</a>
+</header>
+<div class="subnav">
+  <a href="/universo.html">Universo de Activos</a>
+  <a href="/niveles.html">Niveles de Importancia</a>
+  <a href="/medias.html" class="actual">Medias Móviles</a>
+</div>
+<main>
+
+  <div class="panel">
+    <p class="ayuda">
+      Estas 4 medias son la referencia general del sistema. Las posiciones <b>1 (rápida)</b> y
+      <b>2 (lenta)</b> son las que calculan la <b>tendencia</b> que ves en cada alerta del panel
+      (15m/30m/1h/4h/1D: ▲▼●). Las posiciones 3 y 4 quedan reservadas para usos futuros.
+      Tipos admitidos: <b>SMA</b>, <b>EMA</b>, <b>WMA</b>, <b>SMMA</b>.
+    </p>
+    <p class="ayuda">
+      Esto <b>no</b> son las medias que generan avisos — esas se gestionan en
+      <a href="/niveles.html">Niveles de Importancia</a>, donde puedes usar cualquier combinación
+      de medias y periodos, sin depender de esta configuración de 4 posiciones.
+    </p>
+  </div>
+
+  <div class="panel" id="tarjetas">
+    <!-- se rellena por JS -->
+  </div>
+
+</main>
+
+<script>
+const DESCRIPCIONES = {
+  1: { titulo: 'Posición 1 — Media rápida', desc: 'Usada junto a la posición 2 para calcular la tendencia del panel.' },
+  2: { titulo: 'Posición 2 — Media lenta', desc: 'Usada junto a la posición 1 para calcular la tendencia del panel.' },
+  3: { titulo: 'Posición 3 — Reservada', desc: 'Sin uso en el sistema todavía.' },
+  4: { titulo: 'Posición 4 — Reservada', desc: 'Sin uso en el sistema todavía.' },
+};
+const TIPOS = ['SMA','EMA','WMA','SMMA'];
+
+async function cargar(){
+  const cont = document.getElementById('tarjetas');
+  try{
+    const resp = await fetch('/api/medias');
+    const data = await resp.json();
+    const porPosicion = {};
+    data.medias.forEach(m => { porPosicion[m.posicion] = m; });
+
+    cont.innerHTML = [1,2,3,4].map(pos=>{
+      const actual = porPosicion[pos] || { tipo: 'EMA', periodo: 9 };
+      const info = DESCRIPCIONES[pos];
+      return `
+      <div class="tarjeta-media" data-pos="${pos}">
+        <div class="info-posicion">
+          <div class="titulo">${info.titulo}</div>
+          <div class="desc">${info.desc}</div>
+          <div class="etiqueta-actual" id="etiqueta-${pos}">${actual.tipo} ${actual.periodo}</div>
+        </div>
+        <div class="campo campo-tipo">
+          <label>Tipo</label>
+          <select id="tipo-${pos}">
+            ${TIPOS.map(t=>`<option value="${t}" ${t===actual.tipo?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="campo campo-periodo">
+          <label>Periodo</label>
+          <input id="periodo-${pos}" type="number" min="1" value="${actual.periodo}" />
+        </div>
+        <button onclick="guardar(${pos})">Guardar</button>
+        <div class="msg" id="msg-${pos}"></div>
+      </div>`;
+    }).join('');
+  }catch(err){
+    cont.innerHTML = `<div class="msg err">Error cargando: ${err.message}</div>`;
+  }
+}
+
+async function guardar(posicion){
+  const tipo = document.getElementById(`tipo-${posicion}`).value;
+  const periodo = Number(document.getElementById(`periodo-${posicion}`).value);
+  const msg = document.getElementById(`msg-${posicion}`);
+  if(!periodo || periodo < 1){
+    msg.className = 'msg err'; msg.textContent = 'El periodo debe ser un número mayor que 0.'; return;
+  }
+  try{
+    const resp = await fetch('/api/medias', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ posicion, tipo, periodo }),
+    });
+    const data = await resp.json();
+    if(!resp.ok) throw new Error(data.error || 'Error desconocido');
+    document.getElementById(`etiqueta-${posicion}`).textContent = `${tipo} ${periodo}`;
+    msg.className = 'msg'; msg.textContent = 'Guardado.';
+    setTimeout(()=>{ msg.textContent=''; }, 2500);
+  }catch(err){
+    msg.className = 'msg err'; msg.textContent = 'Error: ' + err.message;
+  }
+}
+cargar();
+</script>
+</body>
+</html>

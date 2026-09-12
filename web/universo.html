@@ -20,6 +20,9 @@
   a{color:var(--gold); text-decoration:none;}
   header{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
   header h1{font-family:var(--font-display);font-size:20px;font-weight:600;margin:0;}
+  .subnav{max-width:900px;margin:0 auto;padding:0 24px 16px;display:flex;gap:14px;font-size:13px;}
+  .subnav a{color:var(--text-2);}
+  .subnav a.actual{color:var(--gold);}
   main{max-width:900px;margin:0 auto;padding:0 24px;}
   .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;}
   .panel h2{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0 0 14px;}
@@ -61,6 +64,11 @@
   <h1>Universo de Activos</h1>
   <a href="/">← Volver al panel</a>
 </header>
+<div class="subnav">
+  <a href="/universo.html" class="actual">Universo de Activos</a>
+  <a href="/niveles.html">Niveles de Importancia</a>
+  <a href="/medias.html">Medias Móviles</a>
+</div>
 <main>
 
   <div class="panel">
@@ -102,8 +110,18 @@
 
   <div class="panel">
     <h2>Activos dados de alta</h2>
+    <div class="fila" style="margin-bottom:14px;">
+      <select id="filtroCategoria" onchange="renderTabla()">
+        <option value="">Todas las categorías</option>
+      </select>
+      <select id="filtroEstado" onchange="renderTabla()">
+        <option value="">Todos los estados</option>
+        <option value="Activo">Solo Activos</option>
+        <option value="Inactivo">Solo Inactivos</option>
+      </select>
+    </div>
     <table>
-      <thead><tr><th>Nombre</th><th>Mercado</th><th>Símbolo TV</th><th>Estado</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Categoría</th><th>Mercado</th><th>Símbolo TV</th><th>Estado</th><th></th></tr></thead>
       <tbody id="tablaActivos"></tbody>
     </table>
   </div>
@@ -167,22 +185,66 @@ async function crearActivo(){
     msg.innerHTML = `<div class="msg err">Error: ${err.message}</div>`;
   }
 }
+let TODOS_LOS_ACTIVOS = [];
+
+function renderTabla(){
+  const filtroCat = document.getElementById('filtroCategoria').value;
+  const filtroEst = document.getElementById('filtroEstado').value;
+  const tbody = document.getElementById('tablaActivos');
+  const filtrados = TODOS_LOS_ACTIVOS.filter(a =>
+    (!filtroCat || a.categoria === filtroCat) && (!filtroEst || a.estado === filtroEst)
+  );
+  if(!filtrados.length){
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-3);">Sin activos para este filtro.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtrados.map(a=>`
+    <tr>
+      <td>${a.nombre}</td>
+      <td>${a.categoria||''}</td>
+      <td>${a.mercado||''}</td>
+      <td class="mono">${a.tv_symbol}</td>
+      <td><span class="estado-pill estado-${a.estado}">${a.estado}</span></td>
+      <td>
+        <button class="secundario" style="padding:5px 10px;font-size:12px;" onclick="cambiarEstado(${a.id}, '${a.estado==='Activo'?'Inactivo':'Activo'}')">
+          ${a.estado === 'Activo' ? 'Desactivar' : 'Activar'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function cambiarEstado(id, nuevoEstado){
+  try{
+    const resp = await fetch(`/api/universo/${id}/estado`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({estado: nuevoEstado}),
+    });
+    if(!resp.ok) throw new Error('No se pudo cambiar el estado');
+    const activo = TODOS_LOS_ACTIVOS.find(a=>a.id===id);
+    if(activo) activo.estado = nuevoEstado;
+    renderTabla();
+  }catch(err){
+    alert('Error: ' + err.message);
+  }
+}
+
+function rellenarFiltroCategorias(){
+  const select = document.getElementById('filtroCategoria');
+  const categorias = [...new Set(TODOS_LOS_ACTIVOS.map(a=>a.categoria).filter(Boolean))].sort();
+  select.innerHTML = '<option value="">Todas las categorías</option>' +
+    categorias.map(c=>`<option value="${c}">${c}</option>`).join('');
+}
+
 async function cargarTabla(){
   const tbody = document.getElementById('tablaActivos');
   try{
     const resp = await fetch('/api/universo');
     const data = await resp.json();
-    tbody.innerHTML = data.activos.map(a=>`
-      <tr>
-        <td>${a.nombre}</td>
-        <td>${a.mercado||''}</td>
-        <td class="mono">${a.tv_symbol}</td>
-        <td><span class="estado-pill estado-${a.estado}">${a.estado}</span></td>
-        <td></td>
-      </tr>
-    `).join('');
+    TODOS_LOS_ACTIVOS = data.activos;
+    rellenarFiltroCategorias();
+    renderTabla();
   }catch(err){
-    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
   }
 }
 cargarTabla();

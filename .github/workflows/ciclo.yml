@@ -47,6 +47,12 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          # El ON/OFF real de Telegram y Email ahora se controla desde la web
+          # (/ajustes.html, guardado en la base de datos) - estas dos
+          # variables ya NO deciden nada mientras la base de datos tenga un
+          # valor guardado; solo actuan como respaldo si nunca has entrado
+          # en /ajustes.html. Las credenciales de abajo SI siguen haciendo
+          # falta siempre, vengan de donde vengan los interruptores.
           CANAL_TELEGRAM: ${{ vars.CANAL_TELEGRAM }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

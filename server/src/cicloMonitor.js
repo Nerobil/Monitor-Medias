@@ -245,7 +245,9 @@ async function ejecutarCiclo() {
 
   if (alertasNuevasTotal.length) {
     log(`Cruces nuevos detectados: ${alertasNuevasTotal.length}. Enviando notificaciones...`);
-    const { enviados, errores: erroresEnvio } = await despacharAvisos(alertasNuevasTotal);
+    const telegramActivo = (await repo.obtenerConfigGeneral('canal_telegram', 'true')) === 'true';
+    const emailActivo = (await repo.obtenerConfigGeneral('canal_email', 'true')) === 'true';
+    const { enviados, errores: erroresEnvio } = await despacharAvisos(alertasNuevasTotal, { telegramActivo, emailActivo });
     log(`Notificado por: ${enviados.join(', ') || 'ningun canal activo'}.`);
     erroresEnvio.forEach((e) => log(`ERROR notificando por ${e.canal}: ${e.error}`));
   } else {

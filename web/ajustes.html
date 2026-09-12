@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ajustes — Monitor de Cruces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E14; --surface:#121821; --surface-2:#1A2129; --border:#232C38;
+    --text:#EDF1F5; --text-2:#8B98A8; --text-3:#5C6773;
+    --gold:#E3A548; --up:#35D08C; --down:#F0555A;
+    --font-display:'Space Grotesk',system-ui,sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);padding-bottom:4rem;}
+  a{color:var(--gold); text-decoration:none;}
+  header{max-width:900px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  header h1{font-family:var(--font-display);font-size:20px;font-weight:600;margin:0;}
+  .subnav{max-width:900px;margin:0 auto;padding:0 24px 16px;display:flex;gap:14px;font-size:13px;flex-wrap:wrap;}
+  .subnav a{color:var(--text-2);}
+  .subnav a.actual{color:var(--gold);}
+  main{max-width:900px;margin:0 auto;padding:0 24px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+  .panel h2{font-family:var(--font-display);font-size:15px;font-weight:600;margin:0 0 6px;}
+  .panel .ayuda{font-size:12px;color:var(--text-3);margin:0 0 14px;line-height:1.5;}
+
+  .fila-tf{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .fila-tf:last-child{border-bottom:none;}
+  .fila-tf .nombre-tf{font-family:var(--font-display);font-weight:600;font-size:14px;width:70px;}
+  .toggle-grupo{display:flex;gap:20px;flex:1;flex-wrap:wrap;}
+  .toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);cursor:pointer;user-select:none;}
+  .switch{width:38px;height:22px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);position:relative;transition:background .15s;flex-shrink:0;}
+  .switch.on{background:rgba(227,165,72,0.25);border-color:var(--gold);}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--text-3);transition:transform .15s, background .15s;}
+  .switch.on::after{transform:translateX(16px);background:var(--gold);}
+
+  .canal-fila{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+  .canal-fila:last-child{border-bottom:none;}
+  .canal-info .nombre{font-family:var(--font-display);font-weight:600;font-size:14px;}
+  .canal-info .desc{font-size:12px;color:var(--text-3);margin-top:2px;}
+
+  .estado-guardado{font-size:11px;color:var(--up);opacity:0;transition:opacity .3s;margin-left:8px;}
+  .estado-guardado.visible{opacity:1;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ajustes</h1>
+  <a href="/">← Volver al panel</a>
+</header>
+<div class="subnav">
+  <a href="/universo.html">Universo de Activos</a>
+  <a href="/niveles.html">Niveles de Importancia</a>
+  <a href="/medias.html">Medias Móviles</a>
+  <a href="/ajustes.html" class="actual">Ajustes</a>
+</div>
+<main>
+
+  <div class="panel">
+    <h2>Timeframes vigilados</h2>
+    <p class="ayuda">
+      <b>Vigilar cruces</b>: si está apagado para un timeframe, las reglas de
+      <a href="/niveles.html">Niveles de Importancia</a> que usen ese timeframe se ignoran — no se generan avisos.
+      <b>Mostrar tendencia</b>: si está apagado, ese timeframe no aparece en la fila de tendencias (▲▼●) del panel,
+      pero no afecta a si se generan avisos o no.
+    </p>
+    <div id="listaTimeframes"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Canales de notificación</h2>
+    <p class="ayuda">
+      Activa o desactiva por dónde llegan los avisos. Las credenciales (token de Telegram, datos del
+      correo) se configuran aparte, como Secrets en GitHub — esto solo enciende o apaga el canal.
+    </p>
+    <div class="canal-fila">
+      <div class="canal-info">
+        <div class="nombre">Telegram</div>
+        <div class="desc">Instantáneo, recomendado como canal principal.</div>
+      </div>
+      <div>
+        <span class="switch" id="switch-telegram" onclick="cambiarCanal('telegram')"></span>
+        <span class="estado-guardado" id="guardado-telegram">Guardado</span>
+      </div>
+    </div>
+    <div class="canal-fila">
+      <div class="canal-info">
+        <div class="nombre">Email</div>
+        <div class="desc">De respaldo. Solo llegará si además tienes EMAIL_HOST configurado en GitHub.</div>
+      </div>
+      <div>
+        <span class="switch" id="switch-email" onclick="cambiarCanal('email')"></span>
+        <span class="estado-guardado" id="guardado-email">Guardado</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const TF_LABELS = {15:'15 min', 30:'30 min', 60:'1 hora', 240:'4 horas', '1D':'Diario'};
+let ESTADO = { timeframes: [], canalTelegram: true, canalEmail: true };
+
+function renderTimeframes(){
+  const cont = document.getElementById('listaTimeframes');
+  cont.innerHTML = ESTADO.timeframes.map(tf => `
+    <div class="fila-tf" data-tf="${tf.timeframe}">
+      <div class="nombre-tf">${TF_LABELS[tf.timeframe] || tf.etiqueta}</div>
+      <div class="toggle-grupo">
+        <div class="toggle" onclick="cambiarTimeframe('${tf.timeframe}', 'vigilar_cruces', this)">
+          <span class="switch ${tf.vigilar_cruces ? 'on' : ''}"></span> Vigilar cruces
+        </div>
+        <div class="toggle" onclick="cambiarTimeframe('${tf.timeframe}', 'mostrar_en_panel', this)">
+          <span class="switch ${tf.mostrar_en_panel ? 'on' : ''}"></span> Mostrar tendencia
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCanales(){
+  document.getElementById('switch-telegram').classList.toggle('on', ESTADO.canalTelegram);
+  document.getElementById('switch-email').classList.toggle('on', ESTADO.canalEmail);
+}
+
+async function cambiarTimeframe(tf, campo, elDiv){
+  const tfObj = ESTADO.timeframes.find(t => String(t.timeframe) === String(tf));
+  const nuevoValor = tfObj[campo] ? 0 : 1;
+  const switchEl = elDiv.querySelector('.switch');
+  switchEl.classList.toggle('on', !!nuevoValor);
+  try{
+    const resp = await fetch('/api/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ tipo:'timeframe', timeframe: tf, [campo]: !!nuevoValor }),
+    });
+    if(!resp.ok) throw new Error('No se pudo guardar');
+    tfObj[campo] = nuevoValor;
+  }catch(err){
+    switchEl.classList.toggle('on', !!tfObj[campo]); // revertir visualmente
+    alert('Error guardando: ' + err.message);
+  }
+}
+
+async function cambiarCanal(canal){
+  const clave = canal === 'telegram' ? 'canalTelegram' : 'canalEmail';
+  const nuevoValor = !ESTADO[clave];
+  const switchEl = document.getElementById(`switch-${canal}`);
+  switchEl.classList.toggle('on', nuevoValor);
+  try{
+    const resp = await fetch('/api/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ tipo:'canal', canal, activo: nuevoValor }),
+    });
+    if(!resp.ok) throw new Error('No se pudo guardar');
+    ESTADO[clave] = nuevoValor;
+    const insignia = document.getElementById(`guardado-${canal}`);
+    insignia.classList.add('visible');
+    setTimeout(()=>insignia.classList.remove('visible'), 1500);
+  }catch(err){
+    switchEl.classList.toggle('on', ESTADO[clave]); // revertir
+    alert('Error guardando: ' + err.message);
+  }
+}
+
+async function cargar(){
+  try{
+    const resp = await fetch('/api/config');
+    const data = await resp.json();
+    ESTADO = data;
+    renderTimeframes();
+    renderCanales();
+  }catch(err){
+    document.getElementById('listaTimeframes').innerHTML = `<p style="color:var(--down);">Error cargando: ${err.message}</p>`;
+  }
+}
+cargar();
+</script>
+</body>
+</html>

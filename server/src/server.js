@@ -48,9 +48,56 @@ app.get('/api/historico', async (req, res) => {
 app.get('/api/config', async (req, res) => {
   const timeframes = await repo.obtenerTimeframesConfig();
   const mostrarRsi = (await repo.obtenerConfigGeneral('mostrar_rsi', 'true')) === 'true';
-  res.json({ timeframes, mostrarRsi });
+  const canalTelegram = (await repo.obtenerConfigGeneral('canal_telegram', 'true')) === 'true';
+  const canalEmail = (await repo.obtenerConfigGeneral('canal_email', 'true')) === 'true';
+  res.json({
+    timeframes, mostrarRsi, canalTelegram, canalEmail,
+  });
 });
 
+/**
+ * Endpoint unificado (el que usan de verdad las paginas web), en el mismo
+ * formato que la version de Cloudflare para que ambos backends respondan
+ * igual a las mismas llamadas:
+ *   POST /api/config { tipo:'timeframe', timeframe:'15', vigilar_cruces:true, mostrar_en_panel:true }
+ *   POST /api/config { tipo:'rsi', activo:true }
+ *   POST /api/config { tipo:'canal', canal:'telegram'|'email', activo:true }
+ */
+app.post('/api/config', async (req, res) => {
+  try {
+    const { tipo } = req.body;
+
+    if (tipo === 'rsi') {
+      await repo.fijarConfigGeneral('mostrar_rsi', req.body.activo ? 'true' : 'false');
+      return res.json({ ok: true });
+    }
+
+    if (tipo === 'canal') {
+      if (!['telegram', 'email'].includes(req.body.canal)) {
+        return res.status(400).json({ error: 'canal debe ser "telegram" o "email"' });
+      }
+      await repo.fijarConfigGeneral(`canal_${req.body.canal}`, req.body.activo ? 'true' : 'false');
+      return res.json({ ok: true });
+    }
+
+    if (tipo === 'timeframe') {
+      const { mostrar_en_panel: mostrarEnPanel, vigilar_cruces: vigilarCruces } = req.body;
+      const campos = {};
+      if (mostrarEnPanel !== undefined) campos.mostrar_en_panel = mostrarEnPanel ? 1 : 0;
+      if (vigilarCruces !== undefined) campos.vigilar_cruces = vigilarCruces ? 1 : 0;
+      if (!Object.keys(campos).length) return res.status(400).json({ error: 'Nada que actualizar' });
+      await repo.actualizarTimeframeConfig(req.body.timeframe, campos);
+      return res.json({ ok: true });
+    }
+
+    return res.status(400).json({ error: 'tipo desconocido (usa "rsi", "canal" o "timeframe")' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Rutas antiguas (una por accion): se mantienen por compatibilidad, pero
+// las paginas web ya usan el endpoint unificado de arriba ---
 app.post('/api/config/timeframe/:tf', async (req, res) => {
   try {
     const { mostrar_en_panel: mostrarEnPanel, vigilar_cruces: vigilarCruces } = req.body;
@@ -67,6 +114,18 @@ app.post('/api/config/timeframe/:tf', async (req, res) => {
 app.post('/api/config/rsi', async (req, res) => {
   await repo.fijarConfigGeneral('mostrar_rsi', req.body.activo ? 'true' : 'false');
   res.json({ ok: true });
+});
+
+app.post('/api/config/canal/:canal', async (req, res) => {
+  try {
+    if (!['telegram', 'email'].includes(req.params.canal)) {
+      return res.status(400).json({ error: 'canal debe ser "telegram" o "email"' });
+    }
+    await repo.fijarConfigGeneral(`canal_${req.params.canal}`, req.body.activo ? 'true' : 'false');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------- Universo de activos: listar / crear / autocompletar desde TradingView ----------

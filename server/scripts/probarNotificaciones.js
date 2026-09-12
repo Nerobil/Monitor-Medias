@@ -7,6 +7,8 @@
  * Uso:  npm run probar-notificaciones
  */
 require('dotenv').config();
+const { aplicarEsquema } = require('../db/cliente');
+const repo = require('../db/repositorio');
 const { despacharAvisos } = require('../src/notificadores');
 
 const avisoDePrueba = {
@@ -19,13 +21,17 @@ const avisoDePrueba = {
 };
 
 async function main() {
+  await aplicarEsquema();
+  const telegramActivo = (await repo.obtenerConfigGeneral('canal_telegram', 'true')) === 'true';
+  const emailActivo = (await repo.obtenerConfigGeneral('canal_email', 'true')) === 'true';
+  console.log(`Canales segun /ajustes.html -> Telegram: ${telegramActivo ? 'ON' : 'OFF'}, Email: ${emailActivo ? 'ON' : 'OFF'}`);
   console.log('Enviando aviso de prueba...');
-  const { enviados, errores } = await despacharAvisos([avisoDePrueba]);
+  const { enviados, errores } = await despacharAvisos([avisoDePrueba], { telegramActivo, emailActivo });
 
   if (enviados.length) {
     console.log(`✅ Enviado correctamente por: ${enviados.join(', ')}`);
   } else {
-    console.log('⚠️  No se ha enviado por ningun canal (revisa si estan activos abajo).');
+    console.log('⚠️  No se ha enviado por ningun canal (revisa si estan activos en /ajustes.html).');
   }
 
   if (errores.length) {

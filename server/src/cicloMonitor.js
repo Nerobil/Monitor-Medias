@@ -12,7 +12,7 @@ const { obtenerVelas, crearCliente } = require('./tvFetcher');
 const { despacharAvisos } = require('./notificadores');
 
 const HORAS_VENTANA_ACTIVA = 36;
-const PAUSA_ENTRE_ACTIVOS_MS = Number(process.env.PAUSA_ENTRE_ACTIVOS_MS || 400);
+const PAUSA_ENTRE_ACTIVOS_MS = Number(process.env.PAUSA_ENTRE_ACTIVOS_MS || 150);
 
 function log(msg) {
   console.log(`[${new Date().toLocaleString('es-ES')}] ${msg}`);
@@ -23,45 +23,24 @@ function esperar(ms) {
 }
 
 /**
- * Procesa un activo: descarga velas, calcula variaciones/RSI/tendencias,
- * evalua las reglas de niveles_importancia que le correspondan y devuelve
- * las alertas nuevas detectadas (si las hay).
+ * FASE 1 (barata, se hace para los N activos): descarga SOLO las velas de
+ * los timeframes que de verdad usa alguna regla de niveles_importancia -
+ * nunca las 5 franjas por sistema - y evalua los cruces.
  */
-async function procesarActivo({
-  client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta, reglasInvalidasAvisadas,
+async function evaluarCruces({
+  client, activo, reglas, reglasInvalidasAvisadas,
 }) {
-  const velasDiarias = await obtenerVelas(client, activo.tv_symbol, '1D', 1300);
-  const cierresDiarios = velasDiarias.map((v) => v.close);
-  const precioActual = cierresDiarios[cierresDiarios.length - 1];
-  const variaciones = calcularVariaciones(velasDiarias);
-  const rsiValor = rsi(cierresDiarios, 14);
-
-  const velasPorTF = { '1D': velasDiarias };
-  for (const tf of timeframesConfig) {
-    if (tf.timeframe === '1D') continue;
-    if (!tf.vigilar_cruces && !tf.mostrar_en_panel) continue;
+  const timeframesNecesarios = [...new Set(reglas.map((r) => String(r.timeframe)))];
+  const velasPorTF = {};
+  for (const tf of timeframesNecesarios) {
     // eslint-disable-next-line no-await-in-loop
-    velasPorTF[tf.timeframe] = await obtenerVelas(client, activo.tv_symbol, tf.timeframe, 300);
+    velasPorTF[tf] = await obtenerVelas(client, activo.tv_symbol, tf, 300);
   }
 
-  const tendencias = {};
-  timeframesConfig.forEach((tf) => {
-    if (!tf.mostrar_en_panel) return;
-    const velas = velasPorTF[tf.timeframe];
-    if (!velas) return;
-    tendencias[tf.timeframe] = clasificarTendencia(
-      velas.map((v) => v.close), maTendenciaRapida, maTendenciaLenta,
-    );
-  });
-
-  const tfConVigilancia = new Set(
-    timeframesConfig.filter((t) => t.vigilar_cruces).map((t) => String(t.timeframe)),
-  );
   const alertasNuevas = [];
 
   for (const regla of reglas) {
-    if (!tfConVigilancia.has(String(regla.timeframe))) continue;
-    const velas = velasPorTF[regla.timeframe];
+    const velas = velasPorTF[String(regla.timeframe)];
     if (!velas || velas.length < 5) continue;
 
     // Una regla mal formada (por ejemplo, con "Vela" en vez de una media
@@ -71,6 +50,7 @@ async function procesarActivo({
     // por cada activo, para no inundar el log.
     try {
       const cierres = velas.map((v) => v.close);
+      const precioActual = cierres[cierres.length - 1];
 
       const rapida = parseEtiquetaMedia(regla.media_rapida);
       const lenta = parseEtiquetaMedia(regla.media_lenta);
@@ -123,21 +103,75 @@ async function procesarActivo({
     }
   }
 
+  return { alertasNuevas, velasPorTF };
+}
+
+/**
+ * FASE 2 (cara: historico diario de 1300 velas + timeframes adicionales para
+ * tendencias), SOLO para los activos que van a mostrarse en el panel - es
+ * decir, los que tienen alguna alerta activa (nueva o de antes). Reutiliza
+ * las velas ya descargadas en la fase 1 para no pedirlas dos veces.
+ */
+async function calcularContextoPanel({
+  client, activo, timeframesConfig, maTendenciaRapida, maTendenciaLenta, velasPorTFYaObtenidas,
+}) {
+  const velasDiarias = await obtenerVelas(client, activo.tv_symbol, '1D', 1300);
+  const cierresDiarios = velasDiarias.map((v) => v.close);
+  const variaciones = calcularVariaciones(velasDiarias);
+  const rsiValor = rsi(cierresDiarios, 14);
+
+  const velasPorTF = { ...velasPorTFYaObtenidas, '1D': velasDiarias };
+  for (const tf of timeframesConfig) {
+    if (tf.timeframe === '1D' || !tf.mostrar_en_panel || velasPorTF[tf.timeframe]) continue;
+    // eslint-disable-next-line no-await-in-loop
+    velasPorTF[tf.timeframe] = await obtenerVelas(client, activo.tv_symbol, tf.timeframe, 300);
+  }
+
+  const tendencias = {};
+  timeframesConfig.forEach((tf) => {
+    if (!tf.mostrar_en_panel) return;
+    const velas = velasPorTF[tf.timeframe];
+    if (!velas) return;
+    tendencias[tf.timeframe] = clasificarTendencia(
+      velas.map((v) => v.close), maTendenciaRapida, maTendenciaLenta,
+    );
+  });
+
   return {
-    alertasNuevas,
-    snapshot: {
-      precioActual,
-      varDia: variaciones.varDia,
-      var5d: variaciones.var5d,
-      var1m: variaciones.var1m,
-      var3m: variaciones.var3m,
-      varYtd: variaciones.varYtd,
-      var1a: variaciones.var1a,
-      var5a: variaciones.var5a,
-      rsi: rsiValor,
-      tendencias,
-    },
+    precioActual: cierresDiarios[cierresDiarios.length - 1],
+    varDia: variaciones.varDia,
+    var5d: variaciones.var5d,
+    var1m: variaciones.var1m,
+    var3m: variaciones.var3m,
+    varYtd: variaciones.varYtd,
+    var1a: variaciones.var1a,
+    var5a: variaciones.var5a,
+    rsi: rsiValor,
+    tendencias,
   };
+}
+
+/**
+ * Procesa una lista de items con un maximo de `concurrencia` a la vez (en
+ * vez de uno detras de otro). Como esperar la respuesta de TradingView es
+ * tiempo "muerto" de red, hacer varias peticiones a la vez aprovecha ese
+ * tiempo en vez de desperdiciarlo - es la optimizacion de mayor impacto,
+ * pero tambien la de mas riesgo (muchas conexiones simultaneas podrian
+ * activar algun limite de TradingView), por eso el valor por defecto es
+ * conservador y ajustable por variable de entorno.
+ */
+async function procesarEnParalelo(items, concurrencia, fn) {
+  let indice = 0;
+  async function trabajador() {
+    while (indice < items.length) {
+      const miIndice = indice;
+      indice += 1;
+      // eslint-disable-next-line no-await-in-loop
+      await fn(items[miIndice], miIndice);
+    }
+  }
+  const trabajadores = Array.from({ length: Math.min(concurrencia, items.length) }, () => trabajador());
+  await Promise.all(trabajadores);
 }
 
 async function ejecutarCiclo() {
@@ -157,31 +191,35 @@ async function ejecutarCiclo() {
   const alertasNuevasTotal = [];
   const reglasInvalidasAvisadas = new Set();
   const errores = [];
+  let conContextoPanel = 0;
 
   if (activos.length > 0) {
     const client = crearCliente();
+    const concurrencia = Number(process.env.CONCURRENCIA_ACTIVOS || 4);
 
-    for (const activo of activos) {
+    await procesarEnParalelo(activos, concurrencia, async (activo) => {
       try {
-        // eslint-disable-next-line no-await-in-loop
-        const { alertasNuevas, snapshot } = await procesarActivo({
-          client, activo, reglas, timeframesConfig, maTendenciaRapida, maTendenciaLenta, reglasInvalidasAvisadas,
+        const { alertasNuevas, velasPorTF } = await evaluarCruces({
+          client, activo, reglas, reglasInvalidasAvisadas,
         });
         alertasNuevasTotal.push(...alertasNuevas);
 
-        // eslint-disable-next-line no-await-in-loop
         const activasPrevias = await repo.listarAlertasActivasDeActivo(activo.id);
         if (alertasNuevas.length > 0 || activasPrevias.length > 0) {
-          // eslint-disable-next-line no-await-in-loop
+          conContextoPanel += 1;
+          const snapshot = await calcularContextoPanel({
+            client, activo, timeframesConfig, maTendenciaRapida, maTendenciaLenta, velasPorTFYaObtenidas: velasPorTF,
+          });
           await repo.guardarSnapshot(activo.id, snapshot);
         }
       } catch (err) {
         errores.push({ activo: activo.nombre, error: err.message });
         log(`ERROR con ${activo.nombre}: ${err.message}`);
       }
-      // eslint-disable-next-line no-await-in-loop
       await esperar(PAUSA_ENTRE_ACTIVOS_MS);
-    }
+    });
+
+    log(`Contexto de panel (precio/variaciones/RSI/tendencias) calculado para ${conContextoPanel} de ${activos.length} activos (solo los que tienen alerta activa).`);
 
     // client.end() de la libreria de TradingView tiene un fallo conocido: si el
     // WebSocket todavia esta conectando (readyState 0) cuando se llama, nunca

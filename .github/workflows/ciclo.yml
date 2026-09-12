@@ -2,22 +2,19 @@ name: Ciclo de vigilancia - Monitor de Cruces
 
 on:
   schedule:
-
-    # Cada 6 horas: con 496 activos y el codigo actual (sin optimizar todavia),
-    # Cada 15 minutos. Ajusta si cambias INTERVALO_MINUTOS conceptualmente
-    # (aqui no aplica ese valor: quien manda es este cron, no el bucle interno).
-   # Cada 6 horas: con 496 activos y el codigo actual (sin optimizar todavia),
-    # es la frecuencia mas alta que cabe en el limite gratuito de GitHub
-    # (2000 min/mes). Cambia SOLO esta linea segun tu criterio - opciones ya
-    # calculadas (comenta/descomenta la que quieras usar):
+    # Con las optimizaciones de la Parte 2 (menos peticiones + procesamiento
+    # en paralelo), cada hora ya cabe con los 496 activos actuales dentro del
+    # limite gratuito de GitHub (2000 min/mes) - antes hacian falta 6 horas.
+    # Cambia SOLO esta linea segun tu criterio - opciones ya calculadas
+    # (comenta/descomenta la que quieras usar; cifras estimadas, confirmalas
+    # con la duracion real de tus proximos ciclos en la pestaña Actions):
     #
-    #   */30 * * * *   -> cada 30 min   (necesitas <= 46 activos)
-    #   0 * * * *      -> cada 1 hora   (necesitas <= 93 activos)
-    #   0 */2 * * *    -> cada 2 horas  (necesitas <= 187 activos)
-    #   0 */4 * * *    -> cada 4 horas  (necesitas <= 375 activos)
-    #   0 */6 * * *    -> cada 6 horas  (caben los 496 activos actuales)
-
-    - cron: '*/30 * * * *'
+    #   */30 * * * *   -> cada 30 min   (necesitas <= 375 activos)
+    #   0 * * * *      -> cada 1 hora   (caben los 496 activos actuales)
+    #   0 */2 * * *    -> cada 2 horas  (mucho margen, hasta ~1500 activos)
+    #   0 */4 * * *    -> cada 4 horas
+    #   0 */6 * * *    -> cada 6 horas  (valor anterior, ya no hace falta)
+    - cron: '0 * * * *'
   workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña "Actions" de GitHub
 
 # Evita que dos ejecuciones se solapen: si una tarda mas de lo previsto y
@@ -63,6 +60,11 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           TV_SESSION: ${{ secrets.TV_SESSION }}
           TV_SIGNATURE: ${{ secrets.TV_SIGNATURE }}
+          # Cuantos activos se procesan a la vez. Sube esto (Settings > Secrets
+          # and variables > Actions > Variables > CONCURRENCIA_ACTIVOS) si
+          # quieres ir mas rapido; bajalo si ves mas errores de conexion de
+          # lo normal en el log. Por defecto 4 si no defines la variable.
+          CONCURRENCIA_ACTIVOS: ${{ vars.CONCURRENCIA_ACTIVOS }}
           # INTERVALO_MINUTOS se deja vacio a proposito: en GitHub Actions el
           # ciclo debe ejecutarse UNA vez y salir; es el cron de arriba quien
           # decide la periodicidad.

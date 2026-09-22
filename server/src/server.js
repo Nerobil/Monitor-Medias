@@ -183,8 +183,17 @@ app.post('/api/medias', async (req, res) => {
 // ---------- Niveles de importancia (que cruces de medias se vigilan y con que nivel) ----------
 app.get('/api/niveles', async (req, res) => {
   try {
-    const niveles = await repo.listarNivelesImportancia();
+    const niveles = await repo.listarTodosLosNiveles();
     res.json({ niveles });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/niveles/:id/estado', async (req, res) => {
+  try {
+    await repo.actualizarEstadoNivel(req.params.id, req.body.activo);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

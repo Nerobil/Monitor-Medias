@@ -55,6 +55,7 @@ async function aplicarEsquema() {
 async function aplicarMigracionesColumnas() {
   const migraciones = [
     'ALTER TABLE alertas ADD COLUMN tv_symbol TEXT',
+    'ALTER TABLE niveles_importancia ADD COLUMN activo INTEGER NOT NULL DEFAULT 1',
   ];
   for (const migracion of migraciones) {
     try {

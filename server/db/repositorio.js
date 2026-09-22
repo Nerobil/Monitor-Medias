@@ -85,15 +85,15 @@ async function obtenerNivelesImportancia() {
 }
 
 async function listarNivelesImportancia() {
+  const rs = await db.execute('SELECT * FROM niveles_importancia WHERE activo = 1 ORDER BY timeframe, nivel');
+  return rs.rows;
+}
+
+async function listarTodosLosNiveles() {
   const rs = await db.execute('SELECT * FROM niveles_importancia ORDER BY timeframe, nivel');
   return rs.rows;
 }
 
-/**
- * Da de alta o actualiza una regla de cruce a vigilar. La combinacion
- * media_rapida/media_lenta/timeframe es unica: si ya existia, se actualiza
- * el nivel en vez de duplicarla.
- */
 async function guardarNivelImportancia({
   mediaRapida, mediaLenta, timeframe, nivel, descripcion,
 }) {
@@ -104,6 +104,10 @@ async function guardarNivelImportancia({
             nivel = excluded.nivel, descripcion = excluded.descripcion`,
     args: [mediaRapida, mediaLenta, timeframe, nivel, descripcion || null],
   });
+}
+
+async function actualizarEstadoNivel(id, activo) {
+  await db.execute({ sql: 'UPDATE niveles_importancia SET activo = ? WHERE id = ?', args: [activo ? 1 : 0, id] });
 }
 
 async function eliminarNivelImportancia(id) {
@@ -250,6 +254,8 @@ module.exports = {
   fijarConfigGeneral,
   obtenerNivelesImportancia,
   listarNivelesImportancia,
+  listarTodosLosNiveles,
+  actualizarEstadoNivel,
   guardarNivelImportancia,
   eliminarNivelImportancia,
   existeAlerta,

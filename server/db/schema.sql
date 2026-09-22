@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS niveles_importancia (
   media_lenta TEXT NOT NULL,    -- etiqueta, ej. 'EMA 21'
   timeframe TEXT NOT NULL,      -- '15', '30', '60', '240', '1D'
   nivel INTEGER NOT NULL,
-  descripcion TEXT
+  descripcion TEXT,
+  activo INTEGER NOT NULL DEFAULT 1  -- 1 = se vigila, 0 = desactivada sin borrarla
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_niveles_regla
   ON niveles_importancia(media_rapida, media_lenta, timeframe);

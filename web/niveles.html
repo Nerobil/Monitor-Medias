@@ -97,7 +97,7 @@
   <div class="panel">
     <h2>Reglas dadas de alta</h2>
     <table>
-      <thead><tr><th>Media rápida</th><th>Media lenta</th><th>Timeframe</th><th>Nivel</th><th>Descripción</th><th></th></tr></thead>
+      <thead><tr><th>Media rápida</th><th>Media lenta</th><th>Timeframe</th><th>Nivel</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
       <tbody id="tablaNiveles"></tbody>
     </table>
   </div>
@@ -145,27 +145,45 @@ async function borrarRegla(id){
   }
 }
 
+async function cambiarEstadoNivel(id, nuevoActivo){
+  try{
+    const resp = await fetch(`/api/niveles/${id}/estado`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({activo: nuevoActivo}),
+    });
+    if(!resp.ok) throw new Error('No se pudo cambiar el estado');
+    cargarTabla();
+  }catch(err){
+    alert('Error: ' + err.message);
+  }
+}
+
 async function cargarTabla(){
   const tbody = document.getElementById('tablaNiveles');
   try{
     const resp = await fetch('/api/niveles');
     const data = await resp.json();
     if(!data.niveles.length){
-      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-3);">Todavía no hay reglas dadas de alta.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-3);">Todavía no hay reglas dadas de alta.</td></tr>';
       return;
     }
-    tbody.innerHTML = data.niveles.map(n=>`
-      <tr>
+    tbody.innerHTML = data.niveles.map(n=>{
+      const activa = n.activo !== 0;
+      return `
+      <tr style="${activa?'':'opacity:0.5;'}">
         <td class="mono">${n.media_rapida}</td>
         <td class="mono">${n.media_lenta}</td>
         <td>${TF_LABELS[n.timeframe]||n.timeframe}</td>
         <td><span class="nivel-pill nivel-${n.nivel<=3?n.nivel:'otro'}">Nivel ${n.nivel}</span></td>
         <td style="color:var(--text-2);">${n.descripcion||''}</td>
-        <td><button class="peligro" style="padding:5px 10px;font-size:12px;" onclick="borrarRegla(${n.id})">Borrar</button></td>
-      </tr>
-    `).join('');
+        <td style="color:${activa?'var(--up)':'var(--text-3)'};font-size:12px;">${activa?'Activa':'Desactivada'}</td>
+        <td style="display:flex;gap:6px;">
+          <button class="secundario" style="padding:5px 10px;font-size:12px;" onclick="cambiarEstadoNivel(${n.id}, ${activa?'false':'true'})">${activa?'Desactivar':'Activar'}</button>
+          <button class="peligro" style="padding:5px 10px;font-size:12px;" onclick="borrarRegla(${n.id})">Borrar</button>
+        </td>
+      </tr>`;
+    }).join('');
   }catch(err){
-    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="color:var(--down);">Error cargando: ${err.message}</td></tr>`;
   }
 }
 cargarTabla();

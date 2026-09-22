@@ -16,5 +16,11 @@ server/     Motor de vigilancia (Node.js) — se ejecuta vía GitHub Actions
 web/        Panel web (Cloudflare Pages)
   index.html      Panel principal (activos con alerta activa)
   universo.html   Alta de activos con autocompletado desde TradingView
+  niveles.html    Reglas de cruce (Niveles de Importancia)
+  medias.html     Medias de referencia (tendencia del panel)
+  ajustes.html    Timeframes vigilados y canales de notificación
   functions/api/  Funciones que sirven los datos al panel
+
+mcp/        Servidor MCP — usa el Monitor de Cruces desde Claude Desktop/Code
+  README.md       Cómo configurarlo
 ```

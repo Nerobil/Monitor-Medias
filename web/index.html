@@ -47,6 +47,9 @@
   }
   .chip.on{border-color:var(--gold); color:var(--gold);}
   .chip:hover{border-color:var(--text-3);}
+  .chip[data-nivel="1"].on{border-color:#7CB2F0; color:#7CB2F0;}
+  .chip[data-nivel="2"].on{border-color:var(--gold); color:var(--gold);}
+  .chip[data-nivel="3"].on{border-color:#F58489; color:#F58489;}
 
   main{max-width:1100px; margin:0 auto; padding:0 24px;}
   .lista{display:flex; flex-direction:column; gap:10px; margin-top:8px;}
@@ -112,6 +115,10 @@
     <div id="filtroTf"></div>
   </div>
   <div class="grupo-filtro">
+    <span class="lbl">Nivel</span>
+    <div id="filtroNivel"></div>
+  </div>
+  <div class="grupo-filtro">
     <span class="lbl">Panel</span>
     <div id="togglesVarios"></div>
   </div>
@@ -121,7 +128,7 @@
   <div class="lista" id="lista"></div>
   <div class="empty" id="empty" style="display:none;">
     <h2>Sin alertas activas</h2>
-    <p>No hay cruces detectados en las últimas 36 horas para este filtro.</p>
+    <p>No hay cruces detectados en las últimas 36 horas para estos filtros.</p>
   </div>
 </main>
 
@@ -151,6 +158,13 @@ const DEMO_DATA = {
       precio_actual:68420, var_dia:-1.42, rsi:31, tendencias:{15:'BAJISTA',30:'BAJISTA',60:'BAJISTA',240:'BAJISTA','1D':'LATERAL'},
       detectada_en: hace(8,3),
     },
+    {
+      id:'demo3', nombre_activo:'Santander', tv_symbol:'BME:SAN', mercado:'BME (Madrid)', timeframe:'15',
+      media_rapida:'EMA 9', media_lenta:'EMA 21', direccion:'ALCISTA', nivel:1,
+      mensaje:'EMA 9 ha cruzado EMA 21 al alza en 15 min. Nivel 1. Precio: 9.12. ' + new Date().toLocaleString('es-ES'),
+      precio_actual:9.12, var_dia:0.31, rsi:52, tendencias:{15:'ALCISTA',30:'LATERAL',60:'LATERAL',240:'ALCISTA','1D':'ALCISTA'},
+      detectada_en: hace(1,40),
+    },
   ],
 };
 function hace(h,m){ const d=new Date(); d.setHours(d.getHours()-h, d.getMinutes()-m); return d.toISOString(); }
@@ -169,6 +183,8 @@ function flechaTendencia(t){
 }
 
 let tfFiltro = null;
+let nivelesFiltro = new Set();      // vacio = todos los niveles
+let nivelesDisponibles = [];
 let rsiVisible = true;
 let tendenciasVisible = true;
 
@@ -185,6 +201,41 @@ function renderFiltrosTf(timeframes){
     chip.className = 'chip' + (tfFiltro===String(tf.timeframe)?' on':'');
     chip.textContent = TF_LABELS[tf.timeframe] || tf.etiqueta;
     chip.onclick = () => { tfFiltro = String(tf.timeframe); cargar(); };
+    cont.appendChild(chip);
+  });
+}
+
+/**
+ * Filtro de nivel de aviso (multiseleccion). Si no hay ningun nivel marcado se
+ * muestran todos. Se filtra en el navegador sobre las alertas ya cargadas, asi
+ * que cambiar de nivel es instantaneo y no vuelve a pedir datos al servidor.
+ * `niveles` llega de la API (reglas dadas de alta) y se completa con los
+ * niveles que realmente aparezcan en las alertas.
+ */
+function renderFiltrosNivel(niveles, alertas){
+  const set = new Set((niveles||[]).map(Number));
+  (alertas||[]).forEach(a=>{ if(a.nivel!=null) set.add(Number(a.nivel)); });
+  nivelesDisponibles = [...set].filter(n=>!Number.isNaN(n)).sort((a,b)=>a-b);
+  // Si un nivel marcado ya no existe, se descarta para no dejar el panel vacio sin motivo
+  nivelesFiltro = new Set([...nivelesFiltro].filter(n=>nivelesDisponibles.includes(n)));
+
+  const cont = document.getElementById('filtroNivel');
+  cont.innerHTML = '';
+  const chipTodos = document.createElement('div');
+  chipTodos.className = 'chip' + (nivelesFiltro.size===0?' on':'');
+  chipTodos.textContent = 'Todos';
+  chipTodos.onclick = () => { nivelesFiltro.clear(); renderFiltrosNivel(nivelesDisponibles, []); render(window.__ultimoPanel); };
+  cont.appendChild(chipTodos);
+  nivelesDisponibles.forEach(n=>{
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (nivelesFiltro.has(n)?' on':'');
+    chip.dataset.nivel = n;
+    chip.textContent = 'Nivel ' + n;
+    chip.onclick = () => {
+      if(nivelesFiltro.has(n)) nivelesFiltro.delete(n); else nivelesFiltro.add(n);
+      renderFiltrosNivel(nivelesDisponibles, []);
+      render(window.__ultimoPanel);
+    };
     cont.appendChild(chip);
   });
 }
@@ -235,13 +286,17 @@ function render(panel){
   window.__ultimoPanel = panel;
   const lista = document.getElementById('lista');
   const empty = document.getElementById('empty');
-  document.getElementById('statusTxt').textContent = `en vivo · ${panel.alertas.length} alerta(s)${tfFiltro?` · ${TF_LABELS[tfFiltro]||tfFiltro}`:''}`;
-  renderTicker(panel.alertas);
+  const alertas = nivelesFiltro.size
+    ? panel.alertas.filter(a=>nivelesFiltro.has(Number(a.nivel)))
+    : panel.alertas;
+  const nivelTxt = nivelesFiltro.size ? ` · Nivel ${[...nivelesFiltro].sort((a,b)=>a-b).join(',')}` : '';
+  document.getElementById('statusTxt').textContent = `en vivo · ${alertas.length} alerta(s)${tfFiltro?` · ${TF_LABELS[tfFiltro]||tfFiltro}`:''}${nivelTxt}`;
+  renderTicker(alertas);
 
-  if(!panel.alertas.length){ lista.innerHTML=''; empty.style.display='block'; return; }
+  if(!alertas.length){ lista.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
 
-  lista.innerHTML = panel.alertas.map(a=>{
+  lista.innerHTML = alertas.map(a=>{
     const tendencias = a.tendencias || {};
     const tendHtml = tendenciasVisible && Object.keys(tendencias).length
       ? `<span class="tendencias-inline">${Object.keys(tendencias).map(tf=>`${TF_LABELS[tf]||tf}${flechaTendencia(tendencias[tf])}`).join(' ')}</span>`
@@ -282,11 +337,13 @@ async function cargar(){
     if(!resp.ok) throw new Error('sin servidor');
     const data = await resp.json();
     renderFiltrosTf(data.timeframes || []);
+    renderFiltrosNivel(data.niveles, data.alertas);
     renderTogglesVarios(data.mostrarRsi !== false);
     render(data);
   }catch(err){
     document.getElementById('statusTxt').textContent = 'vista previa (datos de ejemplo)';
     renderFiltrosTf(DEMO_DATA.timeframes);
+    renderFiltrosNivel(DEMO_DATA.niveles, DEMO_DATA.alertas);
     renderTogglesVarios(DEMO_DATA.mostrarRsi);
     render(DEMO_DATA);
   }

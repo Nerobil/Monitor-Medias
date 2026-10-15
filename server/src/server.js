@@ -16,7 +16,10 @@ app.get('/api/panel', async (req, res) => {
     const alertas = await repo.listarAlertasActivas({ timeframe: req.query.timeframe });
     const timeframes = await repo.obtenerTimeframesConfig();
     const mostrarRsi = (await repo.obtenerConfigGeneral('mostrar_rsi', 'true')) === 'true';
-    res.json({ alertas, timeframes, mostrarRsi });
+    // Niveles distintos dados de alta en las reglas (para pintar el filtro de nivel del panel).
+    const reglas = await repo.listarTodosLosNiveles();
+    const niveles = [...new Set(reglas.map((r) => Number(r.nivel)))].sort((a, b) => a - b);
+    res.json({ alertas, timeframes, mostrarRsi, niveles });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

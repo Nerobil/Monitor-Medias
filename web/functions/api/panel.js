@@ -33,7 +33,11 @@ export async function onRequestGet({ request, env }) {
     const rsiRs = await db.execute({ sql: 'SELECT valor FROM config_general WHERE clave = ?', args: ['mostrar_rsi'] });
     const mostrarRsi = rsiRs.rows.length ? rsiRs.rows[0].valor === 'true' : true;
 
-    return jsonOk({ alertas, timeframes: tfRs.rows, mostrarRsi });
+    // Niveles distintos dados de alta en las reglas (para pintar el filtro de nivel del panel).
+    const nivRs = await db.execute('SELECT DISTINCT nivel FROM niveles_importancia ORDER BY nivel');
+    const niveles = nivRs.rows.map((r) => Number(r.nivel));
+
+    return jsonOk({ alertas, timeframes: tfRs.rows, mostrarRsi, niveles });
   } catch (err) {
     return jsonError(err.message);
   }

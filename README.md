@@ -14,7 +14,7 @@ server/     Motor de vigilancia (Node.js) — se ejecuta vía GitHub Actions
   scripts/  Migración desde el Excel original
 
 web/        Panel web (Cloudflare Pages)
-  index.html      Panel principal (activos con alerta activa)
+  index.html      Panel principal (alertas activas; filtros por timeframe y nivel)
   universo.html   Alta de activos con autocompletado desde TradingView
   niveles.html    Reglas de cruce (Niveles de Importancia)
   medias.html     Medias de referencia (tendencia del panel)

@@ -252,6 +252,11 @@ instante, sin depender de carpetas de spam.
   VALUES ('EMA 9', 'EMA 21', '60', 2);
   ```
   (`timeframe` es `'15'`, `'30'`, `'60'`, `'240'` o `'1D'`.)
+- **Filtrar por nivel de aviso:** en el panel, junto al filtro de timeframe,
+  está el filtro **Nivel** (Nivel 1, Nivel 2, ...). Puedes marcar varios a la
+  vez (ej. solo Nivel 2 y 3) o pulsar **Todos** para quitar el filtro. Los
+  niveles que aparecen son los dados de alta en `niveles.html`. El filtro se
+  aplica al instante en el navegador y se combina con el de timeframe.
 - **Apagar un timeframe o el RSI del panel:** usa los chips de arriba a la
   derecha en el propio panel web (15m/30m/1h/4h/1D/RSI) — se guardan al
   instante para todos los que abran el panel.

@@ -1,0 +1,16 @@
+{
+  "name": "monitor-cruces-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Servidor MCP para el Monitor de Cruces de Medias Moviles: consulta y gestiona activos, alertas, reglas y ajustes directamente desde Claude, sin pasar por la web.",
+  "main": "index.js",
+  "bin": { "monitor-cruces-mcp": "./index.js" },
+  "scripts": { "start": "node index.js" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@libsql/client": "^0.14.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  }
+}

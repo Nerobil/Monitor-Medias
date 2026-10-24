@@ -36,6 +36,16 @@
   .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--up); display:inline-block; margin-right:6px; box-shadow:0 0 0 3px rgba(53,208,140,0.15);}
   .status{font-size:12px; color:var(--text-3); font-family:var(--font-mono);}
   .enlace-universo{font-size:12px; color:var(--gold); text-decoration:none; font-family:var(--font-mono);}
+  .enlace-ejecutar{color:var(--up); cursor:pointer;}
+  .enlace-ejecutar[aria-busy="true"]{opacity:.6; pointer-events:none;}
+  #aviso{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:50;
+    max-width:min(92vw,520px); padding:12px 16px; border-radius:10px; font-size:13px; line-height:1.4;
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    box-shadow:0 8px 30px rgba(0,0,0,.35); display:none;
+  }
+  #aviso.ok{border-color:var(--up);} #aviso.err{border-color:var(--down);}
+  #aviso a{color:var(--gold); margin-left:6px; white-space:nowrap;}
 
   .barra-filtros{max-width:1100px; margin:0 auto; padding:0 24px 12px; display:flex; flex-wrap:wrap; gap:18px; align-items:center;}
   .grupo-filtro{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
@@ -102,12 +112,14 @@
   <div class="brand"><h1><span class="dot"></span>Monitor de Cruces</h1></div>
   <div class="status" id="statusTxt">cargando...</div>
   <div style="display:flex; gap:14px;">
+    <a class="enlace-universo enlace-ejecutar" href="#" id="btnEjecutar" title="Lanza ahora una ejecución del workflow, como el botón Run workflow de GitHub Actions">▶ Ejecutar ahora</a>
     <a class="enlace-universo" href="/universo.html">Activos</a>
     <a class="enlace-universo" href="/niveles.html">Niveles</a>
     <a class="enlace-universo" href="/medias.html">Medias</a>
     <a class="enlace-universo" href="/ajustes.html">Ajustes</a>
   </div>
 </header>
+<div id="aviso" role="status" aria-live="polite"></div>
 
 <div class="barra-filtros">
   <div class="grupo-filtro">
@@ -239,6 +251,67 @@ function renderFiltrosNivel(niveles, alertas){
     cont.appendChild(chip);
   });
 }
+
+/**
+ * Enlace "Ejecutar ahora": pide al servidor que lance el workflow de GitHub
+ * Actions (en Cloudflare) o que corra un ciclo (servidor local). El token de
+ * GitHub nunca llega al navegador. Si el servidor tiene configurada una clave
+ * (EJECUCION_CLAVE) se pide aqui y se recuerda solo durante la sesion.
+ */
+let avisoTimer = null;
+function mostrarAviso(texto, tipo, urlActions){
+  const el = document.getElementById('aviso');
+  el.className = tipo;
+  el.textContent = texto;
+  if(urlActions){
+    const a = document.createElement('a');
+    a.href = urlActions; a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'Ver en GitHub ↗';
+    el.appendChild(a);
+  }
+  el.style.display = 'block';
+  clearTimeout(avisoTimer);
+  avisoTimer = setTimeout(()=>{ el.style.display='none'; }, tipo==='ok' ? 12000 : 9000);
+}
+function leerClave(){ try{ return sessionStorage.getItem('claveEjecucion')||''; }catch(e){ return ''; } }
+function guardarClave(c){ try{ if(c) sessionStorage.setItem('claveEjecucion', c); else sessionStorage.removeItem('claveEjecucion'); }catch(e){} }
+
+async function ejecutarAhora(ev){
+  ev.preventDefault();
+  const btn = document.getElementById('btnEjecutar');
+  if(btn.getAttribute('aria-busy')==='true') return;
+  const textoOriginal = btn.textContent;
+  btn.setAttribute('aria-busy','true');
+  btn.textContent = 'Lanzando…';
+  try{
+    for(let intento=0; intento<2; intento++){
+      const clave = leerClave();
+      const r = await fetch('/api/ciclo/ejecutar', { method:'POST', headers: clave ? {'X-Clave': clave} : {} });
+      const data = await r.json().catch(()=>({}));
+      if(r.status===401 && data.requiereClave){
+        guardarClave('');
+        if(intento===1){ mostrarAviso('Clave incorrecta.', 'err'); return; }
+        const nueva = window.prompt('Clave para lanzar la ejecución:');
+        if(!nueva){ mostrarAviso('Ejecución cancelada: hace falta la clave.', 'err'); return; }
+        guardarClave(nueva);
+        continue; // reintenta una vez con la clave introducida
+      }
+      if(r.ok){
+        mostrarAviso(data.mensaje || 'Ejecución lanzada.', 'ok', data.actionsUrl);
+        setTimeout(cargar, 90000); // refresca el panel cuando el ciclo ya habrá terminado
+      } else {
+        mostrarAviso(data.error || `Error ${r.status} al lanzar la ejecución.`, 'err', data.actionsUrl);
+      }
+      return;
+    }
+  }catch(e){
+    mostrarAviso('No se pudo contactar con el servidor.', 'err');
+  }finally{
+    btn.removeAttribute('aria-busy');
+    btn.textContent = textoOriginal;
+  }
+}
+document.getElementById('btnEjecutar').addEventListener('click', ejecutarAhora);
 
 function renderTogglesVarios(mostrarRsi){
   rsiVisible = mostrarRsi;

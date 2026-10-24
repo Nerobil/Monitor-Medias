@@ -318,7 +318,7 @@ ejecutan en paralelo).
 5. **Permissions → Repository permissions → Actions:** *Read and write*.
    No marques nada más.
 6. **Generate token** y copia el valor (empieza por `github_pat_...`). GitHub no
-   vuelve a mostrarlo.  "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"
+   vuelve a mostrarlo.
 
 Si el repositorio pertenece a una organización, puede que el propietario tenga
 que aprobar el token.
@@ -330,7 +330,7 @@ Sustituye `TU_USUARIO`, `TU_REPO` y `TU_TOKEN` por tus datos.
 - **Windows (PowerShell):**
   ```
   Invoke-RestMethod -Method Post `
-    -Uri "https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/ciclo.yml/dispatches" `  --> https://api.github.com/repos/Nerobil/Monitor-Medias/actions/workflows/ciclo.yml/dispatches
+    -Uri "https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/ciclo.yml/dispatches" `
     -Headers @{ Authorization="Bearer TU_TOKEN"; Accept="application/vnd.github+json"; "X-GitHub-Api-Version"="2022-11-28" } `
     -ContentType "application/json" -Body '{"ref":"main"}'
   ```
@@ -431,3 +431,75 @@ ciclo** (GitHub redondea hacia arriba cada ejecución a minutos completos).
 | `422 No ref found` | La rama del cuerpo (`"ref":"main"`) no existe; si tu rama es `master`, cámbialo. |
 | El job da éxito (204) pero no se ve ejecución | Revisa la pestaña Actions con el filtro correcto (workflow "Ciclo de vigilancia") y que el workflow no esté marcado como *disabled* (en ese caso, pulsa **Enable workflow**). |
 | La ejecución se queda en "Queued" mucho rato | Saturación de *runners* de GitHub: es una cola de GitHub, no un fallo de tu configuración. |
+
+---
+
+## 12. Botón "▶ Ejecutar ahora" en el panel (lanzar el workflow desde la web)
+
+En la cabecera del panel principal hay un enlace verde, **▶ Ejecutar ahora**.
+Al pulsarlo, el panel pide a Cloudflare que lance el workflow de GitHub Actions
+(`ciclo.yml`), igual que el botón *Run workflow*. El token de GitHub **nunca**
+llega al navegador: vive solo como secreto en Cloudflare Pages. Un aviso en
+pantalla confirma si se lanzó (con enlace "Ver en GitHub") o explica por qué no,
+y el panel se refresca solo unos 90 segundos después.
+
+### 12.1 Crear un token de GitHub para el botón
+
+Haz lo mismo que en 11.2, pero **crea un token distinto** del de cron-job.org
+(así puedes revocar uno sin romper el otro):
+nombre `monitor-cruces-boton`, acceso **solo** a tu repositorio y permiso
+**Actions: Read and write**. Guárdalo solo en el paso siguiente; no lo pegues en
+chats ni en ficheros.
+
+### 12.2 Configurar Cloudflare Pages
+
+1. **dash.cloudflare.com** → **Workers & Pages** → tu proyecto del panel →
+   **Settings** → **Variables and Secrets** → **Add**.
+2. Añade estas variables (en **Production**, y en **Preview** si usas ramas de
+   prueba):
+
+   | Nombre | Tipo | Valor |
+   |---|---|---|
+   | `GITHUB_TOKEN` | **Secret** | el token `github_pat_...` del paso 12.1 |
+   | `GITHUB_REPO` | Texto | `Nerobil/Monitor-Medias` |
+   | `GITHUB_WORKFLOW` | Texto (opcional) | `ciclo.yml` (valor por defecto) |
+   | `GITHUB_REF` | Texto (opcional) | `main` (valor por defecto) |
+   | `COOLDOWN_MINUTOS` | Texto (opcional) | `3` (espera mínima entre lanzamientos; `0` la desactiva) |
+   | `EJECUCION_CLAVE` | Secret (opcional) | una clave que el panel pedirá antes de lanzar |
+
+3. Sube los ficheros nuevos del proyecto a GitHub (`git add .`, `git commit`,
+   `git push`). Cloudflare despliega solo. **Importante:** las variables nuevas
+   solo se aplican a despliegues posteriores a haberlas guardado; si las añadiste
+   después del último despliegue, ve a **Deployments** → los tres puntos del
+   último → **Retry deployment**.
+
+### 12.3 Qué protecciones incluye
+
+Como el panel no tiene inicio de sesión, el endpoint se protege así:
+- **No lanza si ya hay una ejecución en curso o en cola** (mensaje "Ya hay una
+  ejecución en curso").
+- **Espera mínima** (3 min por defecto) desde la última ejecución, contando
+  también las lanzadas por cron-job.org o a mano.
+- **Clave opcional** (`EJECUCION_CLAVE`): si la defines, el panel la pide la
+  primera vez y la recuerda mientras la pestaña siga abierta. Recomendable si
+  la dirección del panel es de conocimiento público.
+- El workflow además tiene `concurrency`, así que nunca corren dos a la vez.
+
+### 12.4 Mensajes y problemas frecuentes
+
+| Mensaje en el panel | Qué hacer |
+|---|---|
+| "El lanzamiento manual no está configurado" | Faltan `GITHUB_TOKEN` y/o `GITHUB_REPO` en Cloudflare, o falta redesplegar tras añadirlas (12.2). |
+| "GitHub ha rechazado el token" | Token caducado, revocado o mal copiado. Genera otro y actualiza el secreto. |
+| "El token no tiene permiso..." | Falta **Actions: Read and write** o que la organización apruebe el token. |
+| "GitHub no encuentra el repositorio o el workflow" | Revisa `GITHUB_REPO` / `GITHUB_WORKFLOW` y que el token tenga acceso a ese repositorio. |
+| "GitHub no puede lanzar el workflow" | `ciclo.yml` no tiene `workflow_dispatch`, o la rama de `GITHUB_REF` no existe. |
+| "Ya hay una ejecución en curso o en cola" | Normal: espera a que termine (ver pestaña Actions). |
+| "Se lanzó una ejecución hace muy poco" | Normal: espera los segundos indicados. |
+
+### 12.5 En tu ordenador (servidor local)
+
+Si usas el servidor local (`npm start` en `server/`), el mismo enlace ejecuta un
+ciclo de vigilancia directamente en tu ordenador (sin GitHub ni token) y
+muestra el aviso al terminar; puede tardar unos minutos.
+

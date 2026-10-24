@@ -5,6 +5,9 @@ TradingView, con panel web, base de datos en la nube y avisos por Telegram/email
 
 👉 **Empieza por [`MANUAL.md`](./MANUAL.md)** — ahí está todo el paso a paso.
 
+Si el cron de GitHub se retrasa o no se ejecuta, mira la sección 11 del manual
+(disparo externo gratuito del workflow con cron-job.org).
+
 ## Estructura del repositorio
 
 ```

@@ -14,7 +14,7 @@ on:
     #   0 */2 * * *    -> cada 2 horas  (mucho margen, hasta ~1500 activos)
     #   0 */4 * * *    -> cada 4 horas
     #   0 */6 * * *    -> cada 6 horas  (valor anterior, ya no hace falta)
-    - cron: '8 1 * * *'
+    - cron: '0 * * * *'
   workflow_dispatch: {} # permite lanzarlo a mano desde la pestaña "Actions" de GitHub
 
 # Evita que dos ejecuciones se solapen: si una tarda mas de lo previsto y

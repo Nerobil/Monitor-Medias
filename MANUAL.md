@@ -276,3 +276,158 @@ instante, sin depender de carpetas de spam.
 | Un activo no aparece nunca aunque tenga cruces | Comprueba en `universo.html` que su Estado sea "Activo" y que el símbolo de TradingView sea correcto (pruébalo en tradingview.com/symbols/). |
 
 Si algo no encaja, dímelo con el mensaje de error exacto y lo resolvemos.
+
+---
+
+## 11. Disparo externo del workflow (cuando GitHub no ejecuta el cron a tiempo)
+
+**El problema:** GitHub avisa de que los workflows programados (`schedule`) pueden
+retrasarse o saltarse en las horas de mucha carga global (sobre todo al inicio de
+cada hora). Lanzar el workflow a mano (**Run workflow**) sí funciona porque usa
+otro mecanismo: el evento `workflow_dispatch`.
+
+**La solución:** un servicio gratuito externo (**cron-job.org**) llama cada cierto
+tiempo a la API de GitHub y dispara ese mismo evento `workflow_dispatch`. Es
+exactamente lo mismo que pulsar **Run workflow**, pero automático. No hace falta
+programar nada ni desplegar ninguna aplicación: tu `ciclo.yml` ya incluye
+`workflow_dispatch` y `concurrency` (si llegan dos disparos a la vez, nunca se
+ejecutan en paralelo).
+
+> Esto evita el retraso propio del cron de GitHub, pero no puede garantizar un
+> inicio instantáneo si los *runners* de GitHub están saturados: en ese caso la
+> ejecución aparecerá en la pestaña Actions como "Queued" hasta que haya hueco.
+
+### 11.1 Datos que necesitas tener a mano
+
+| Dato | Ejemplo |
+|---|---|
+| Usuario y repositorio de GitHub | `tu-usuario/monitor-cruces` |
+| Rama principal | `main` |
+| Nombre del fichero del workflow | `ciclo.yml` |
+
+### 11.2 Crear un token de GitHub con permisos mínimos
+
+1. En GitHub: foto de perfil → **Settings** → **Developer settings** →
+   **Personal access tokens** → **Fine-grained tokens** →
+   **Generate new token**.
+2. **Token name:** `monitor-cruces-disparo`.
+3. **Expiration:** el máximo que te permita (anota la fecha: tendrás que
+   renovarlo, ver 11.7).
+4. **Repository access:** *Only select repositories* → elige **solo** tu
+   repositorio del monitor.
+5. **Permissions → Repository permissions → Actions:** *Read and write*.
+   No marques nada más.
+6. **Generate token** y copia el valor (empieza por `github_pat_...`). GitHub no
+   vuelve a mostrarlo.  "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"
+
+Si el repositorio pertenece a una organización, puede que el propietario tenga
+que aprobar el token.
+
+### 11.3 Probar el token desde tu ordenador (antes de usar el servicio)
+
+Sustituye `TU_USUARIO`, `TU_REPO` y `TU_TOKEN` por tus datos.
+
+- **Windows (PowerShell):**
+  ```
+  Invoke-RestMethod -Method Post `
+    -Uri "https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/ciclo.yml/dispatches" `  --> https://api.github.com/repos/Nerobil/Monitor-Medias/actions/workflows/ciclo.yml/dispatches
+    -Headers @{ Authorization="Bearer TU_TOKEN"; Accept="application/vnd.github+json"; "X-GitHub-Api-Version"="2022-11-28" } `
+    -ContentType "application/json" -Body '{"ref":"main"}'
+  ```
+- **Mac / Linux:**
+  ```
+  curl -i -X POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer TU_TOKEN" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    -H "Content-Type: application/json" \
+    -d '{"ref":"main"}' \
+    https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/ciclo.yml/dispatches
+  ```
+
+**Resultado correcto:** no devuelve texto (PowerShell no muestra nada; `curl`
+muestra `HTTP/2 204`). Ve a la pestaña **Actions** de tu repositorio: debe
+aparecer una ejecución nueva "Ciclo de vigilancia" con el evento
+`workflow_dispatch`. Si te da error, mira la tabla 11.8.
+
+### 11.4 Programar el disparo en cron-job.org
+
+1. Crea una cuenta gratuita en **cron-job.org** (sin tarjeta) y entra en la
+   consola → **Create cronjob**.
+2. Rellena la pestaña principal:
+   - **Title:** `Monitor de Cruces - disparo`
+   - **URL:**
+     `https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/ciclo.yml/dispatches`
+   - **Execution schedule:** la frecuencia que elijas (ver 11.6). Recomendado
+     para empezar: **cada hora, en el minuto 5** (evita el minuto 0, el más
+     saturado de GitHub).
+3. Abre la pestaña **Advanced** y configura:
+   - **Request method:** `POST`
+   - **Request body:** `{"ref":"main"}`
+   - **Headers** (añade estos cuatro, uno por uno, nombre y valor):
+
+     | Nombre | Valor |
+     |---|---|
+     | `Authorization` | `Bearer TU_TOKEN` |
+     | `Accept` | `application/vnd.github+json` |
+     | `X-GitHub-Api-Version` | `2022-11-28` |
+     | `Content-Type` | `application/json` |
+4. Activa el aviso por email si el trabajo **falla** (opción de notificaciones
+   del propio job): así te enteras si el token caduca o se revoca.
+5. Guarda, y pulsa **Test run** (o "Run now"). Debe indicar éxito con código
+   **204**, y en GitHub → Actions debe aparecer una ejecución nueva.
+
+(Los nombres exactos de pestañas y botones de cron-job.org pueden variar
+ligeramente con el tiempo; lo importante son los valores de arriba.)
+
+### 11.5 Evitar ejecuciones duplicadas
+
+Cuando compruebes que el disparo externo funciona bien durante un par de días,
+**comenta o borra el bloque `schedule`** de `.github/workflows/ciclo.yml` (las
+dos líneas `schedule:` y `- cron: ...`), dejando `workflow_dispatch: {}`. Si lo
+mantienes, tendrás dos disparadores y consumirás minutos de más (el
+`concurrency` evita que se solapen, pero no que se ejecuten una tras otra).
+
+Si prefieres mantenerlo como "red de seguridad", cámbialo a un minuto poco
+saturado (por ejemplo `'35 * * * *'`) y programa el externo en otro minuto.
+
+### 11.6 Frecuencia y minutos de GitHub Actions
+
+Cada disparo gasta minutos de Actions: **ejecuciones al mes × duración de cada
+ciclo** (GitHub redondea hacia arriba cada ejecución a minutos completos).
+
+| Frecuencia | Ejecuciones/mes (aprox.) |
+|---|---|
+| Cada hora | 720 |
+| Cada 30 min | 1.440 |
+| Cada 15 min | 2.880 |
+
+- Repositorio **privado**: el plan gratuito incluye 2.000 min/mes. Mira en la
+  pestaña Actions cuánto dura un ciclo real y multiplica. Por ejemplo, con
+  ciclos de 2 min: cada hora = 1.440 min (cabe); cada 30 min = 2.880 min (no
+  cabe).
+- Repositorio **público**: los *runners* estándar de GitHub no tienen límite
+  de minutos.
+
+### 11.7 Mantenimiento
+
+- **Renueva el token antes de que caduque:** genera uno nuevo (11.2) y cambia el
+  valor de la cabecera `Authorization` del job en cron-job.org.
+- **Si sospechas que el token se filtró,** revócalo en GitHub (Settings →
+  Developer settings) y crea otro. Un token así solo permite gestionar
+  workflows de ese único repositorio (lanzarlos, cancelarlos, desactivarlos),
+  no leer ni modificar tu código.
+- No pegues nunca el token en ficheros del repositorio: solo vive en la
+  configuración del job de cron-job.org.
+
+### 11.8 Problemas frecuentes
+
+| Respuesta | Causa probable |
+|---|---|
+| `401 Bad credentials` | Token mal copiado, caducado o revocado. Genera otro. |
+| `403 Resource not accessible by personal access token` | El token no tiene **Actions: Read and write**, o la organización aún no lo ha aprobado. |
+| `404 Not Found` | Usuario/repositorio mal escrito, nombre del fichero distinto a `ciclo.yml`, o el token no tiene acceso a ese repositorio. |
+| `422 Workflow does not have 'workflow_dispatch' trigger` | El `ciclo.yml` subido a GitHub no contiene `workflow_dispatch: {}` (sube la versión actual del proyecto). |
+| `422 No ref found` | La rama del cuerpo (`"ref":"main"`) no existe; si tu rama es `master`, cámbialo. |
+| El job da éxito (204) pero no se ve ejecución | Revisa la pestaña Actions con el filtro correcto (workflow "Ciclo de vigilancia") y que el workflow no esté marcado como *disabled* (en ese caso, pulsa **Enable workflow**). |
+| La ejecución se queda en "Queued" mucho rato | Saturación de *runners* de GitHub: es una cola de GitHub, no un fallo de tu configuración. |
